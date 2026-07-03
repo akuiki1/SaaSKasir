@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+/build/
+# public/build SENGAJA dilacak (di-commit) agar deploy cukup `git pull` tanpa Node di server.
+# Bundle SSR Inertia — artefak build, dihasilkan oleh `npm run build:ssr` saat deploy.
+bootstrap/ssr/
+
+# Vite dev artifacts (must NOT be committed — public/hot points to the dev server)
+public/hot
+public/fonts-manifest.dev.json
+
+# public/storage = symlink ke storage/app/public, dibuat per-server via
+# `php artisan storage:link`. JANGAN di-commit: kalau ter-track, git membuatnya
+# jadi folder biasa di server dan menghalangi symlink → foto produk 404.
+/public/storage
+
+# Cache directories
+vendor/
+composer.lock
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# PHP specific
+*.php~
+**/vendor/**
+!vendor/**
+
+# Testing artifacts
+.phpunit.result.cache
+
+# Arsip build untuk upload ke hosting (artefak, bukan sumber)
+build.zip
+
+# Buku panduan/manual + tooling capture (work-in-progress lokal, file besar .docx & screenshot)
+docs/manual/
