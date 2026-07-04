@@ -847,6 +847,7 @@ function printTimestamp(): { datePart: string; timePart: string } {
 
 const page = usePage();
 const printedByName = computed(() => page.props.auth.user?.name ?? 'Admin');
+const namaToko = computed(() => page.props.toko?.nama ?? 'SiKasir');
 
 function buildFinancialReportHtml(): string {
     const p = props.pnl;
@@ -1149,8 +1150,8 @@ function buildFinancialReportHtml(): string {
 
     const header = `<div class="doc-header">
         <div class="brand">
-            <div class="brand-mark">C</div>
-            <div class="brand-name">Cemilan Mba Tutut</div>
+            <div class="brand-mark">${escapeHtml(namaToko.value.charAt(0).toUpperCase())}</div>
+            <div class="brand-name">${escapeHtml(namaToko.value)}</div>
         </div>
         <div class="doc-title">
             <div class="doc-title-word">LAPORAN KEUANGAN</div>

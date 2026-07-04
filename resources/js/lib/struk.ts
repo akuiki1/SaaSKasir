@@ -27,7 +27,7 @@ export interface StrukData {
     details: StrukDetail[];
 }
 
-export function buildReceiptHtml(trx: StrukData): string {
+export function buildReceiptHtml(trx: StrukData, namaToko: string): string {
     const rows = trx.details
         .map((detail) => {
             // Harga asal baris ini sebelum diskon promo (harga satuan tak berubah,
@@ -84,7 +84,7 @@ export function buildReceiptHtml(trx: StrukData): string {
 </head>
 <body>
 <div class="receipt">
-    <h1 class="center">Cemilan Mba Tutut</h1>
+    <h1 class="center">${namaToko}</h1>
     <p class="center small">Struk Transaksi</p>
     <div class="separator"></div>
     <p>Kode: ${trx.kode}</p>
@@ -138,7 +138,7 @@ export function buildReceiptHtml(trx: StrukData): string {
 </html>`;
 }
 
-export function printReceipt(trx: StrukData): void {
+export function printReceipt(trx: StrukData, namaToko: string): void {
     if (typeof window === 'undefined') {
         return;
     }
@@ -153,7 +153,7 @@ export function printReceipt(trx: StrukData): void {
         return;
     }
 
-    printWindow.document.write(buildReceiptHtml(trx));
+    printWindow.document.write(buildReceiptHtml(trx, namaToko));
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

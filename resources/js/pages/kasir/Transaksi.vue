@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import {
     Search,
     Barcode,
@@ -1000,9 +1000,11 @@ const showStrukSelesai = ref(false);
 const lastStruk = ref<StrukData | null>(null);
 let stopFlashListener: (() => void) | null = null;
 
+const namaToko = computed(() => usePage().props.toko?.nama ?? 'SiKasir');
+
 function cetakStruk(): void {
     if (lastStruk.value) {
-        printReceipt(lastStruk.value);
+        printReceipt(lastStruk.value, namaToko.value);
     }
 }
 

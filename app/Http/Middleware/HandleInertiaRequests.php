@@ -4,7 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\Toko;
 use App\Services\PesananService;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -48,6 +50,34 @@ class HandleInertiaRequests extends Middleware
             // Angka kecil untuk badge sidebar admin; closure agar tak dievaluasi
             // pada partial reload yang tidak memintanya.
             'sidebarBadges' => fn () => $this->sidebarBadges($request),
+            // Branding toko aktif (nama, kontak, logo dsb) — closure agar
+            // dievaluasi setelah middleware route (mis. ResolveTenant untuk
+            // rute publik) selesai menentukan toko aktif di TenantContext.
+            'toko' => fn () => $this->tokoBranding(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function tokoBranding(): ?array
+    {
+        $toko = app(TenantContext::class)->toko();
+
+        if (! $toko) {
+            return null;
+        }
+
+        return [
+            'nama' => $toko->nama,
+            'whatsapp' => $toko->whatsapp,
+            'alamat' => $toko->alamat,
+            'instagram' => $toko->instagram,
+            'jam_buka' => $toko->jam_buka,
+            'deskripsi' => $toko->deskripsi,
+            'logo_url' => Toko::logoUrl($toko->logo),
+            'lokasi_lat' => $toko->lokasi_lat !== null ? (float) $toko->lokasi_lat : null,
+            'lokasi_lng' => $toko->lokasi_lng !== null ? (float) $toko->lokasi_lng : null,
         ];
     }
 

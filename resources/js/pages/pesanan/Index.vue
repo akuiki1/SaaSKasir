@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ClipboardList,
     PackageCheck,
@@ -149,6 +149,8 @@ function waUrl(telp: string, text: string): string {
     return `https://wa.me/${telp}?text=${encodeURIComponent(text)}`;
 }
 
+const namaToko = computed(() => usePage().props.toko?.nama ?? 'SiKasir');
+
 function itemLines(pesanan: Pesanan): string {
     return pesanan.items
         .map((item, i) => `${i + 1}. ${item.nama_produk} (${item.jumlah}x) = ${formatPrice(item.subtotal)}`)
@@ -158,7 +160,7 @@ function itemLines(pesanan: Pesanan): string {
 function reminderText(pesanan: Pesanan): string {
     return (
         `Halo ${pesanan.nama_pelanggan}! 👋\n` +
-        `Pesanan *${pesanan.kode}* kamu sudah *siap diambil* di Cemilan Mba Tutut.\n\n` +
+        `Pesanan *${pesanan.kode}* kamu sudah *siap diambil* di ${namaToko.value}.\n\n` +
         `${itemLines(pesanan)}\n\n` +
         `*Total: ${formatPrice(pesanan.total)}*\n\n` +
         `Ditunggu kedatangannya ya. Terima kasih! 🙏`
@@ -171,7 +173,7 @@ function strukText(pesanan: Pesanan): string {
 
     return (
         `Halo ${pesanan.nama_pelanggan} 🙏\n` +
-        `Terima kasih sudah belanja di *Cemilan Mba Tutut*!\n\n` +
+        `Terima kasih sudah belanja di *${namaToko.value}*!\n\n` +
         `🧾 *STRUK ${trx?.kode ?? pesanan.kode}*\n` +
         `Pesanan: ${pesanan.kode}\n` +
         `------------------------------\n` +

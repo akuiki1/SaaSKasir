@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { Toko } from '@/types/toko';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -23,6 +24,7 @@ declare module '@inertiajs/core' {
                 pesananAktif: number;
                 stokMenipis: number;
             } | null;
+            toko: Toko | null;
             [key: string]: unknown;
         };
     }

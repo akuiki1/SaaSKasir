@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import { computed, type HTMLAttributes } from 'vue';
 
 defineOptions({
     inheritAttrs: false,
@@ -10,14 +11,14 @@ type Props = {
 };
 
 defineProps<Props>();
+
+const toko = computed(() => usePage().props.toko);
+// Fallback ke logo default SiKasir bila toko belum unggah logo sendiri —
+// JANGAN pernah fallback ke logo toko lain.
+const logoSrc = computed(() => toko.value?.logo_url ?? '/images/logo.png');
+const logoAlt = computed(() => toko.value?.nama ?? 'SiKasir');
 </script>
 
 <template>
-    <!-- Logo brand "Mba Tutut" — gambar full-color, ikut ukuran dari class pemanggil -->
-    <img
-        src="/images/logo.png"
-        alt="Cemilan Mba Tutut"
-        class="object-contain"
-        v-bind="$attrs"
-    />
+    <img :src="logoSrc" :alt="logoAlt" class="object-contain" v-bind="$attrs" />
 </template>

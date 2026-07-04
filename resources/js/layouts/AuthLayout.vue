@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowUpRight, ShoppingBag, Sparkles } from 'lucide-vue-next';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
 import { home } from '@/routes';
+
+const namaToko = computed(() => usePage().props.toko?.nama ?? 'SiKasir');
 
 const { title = '', description = '' } = defineProps<{
     title?: string;
@@ -72,7 +74,7 @@ clearInterval(timer);
                     <AppLogoIcon class="h-10 w-10 rounded-xl" />
                     <span
                         class="text-lg font-extrabold tracking-tight text-[var(--kg-primary)]"
-                        >Cemilan Mba Tutut</span
+                        >{{ namaToko }}</span
                     >
                 </Link>
 
@@ -102,7 +104,7 @@ clearInterval(timer);
                 <p
                     class="text-center text-xs text-[var(--kg-sec)] lg:text-left"
                 >
-                    © {{ new Date().getFullYear() }} Cemilan Mba Tutut · Hanya
+                    © {{ new Date().getFullYear() }} {{ namaToko }} · Hanya
                     untuk admin &amp; kasir.
                 </p>
             </div>
@@ -157,8 +159,7 @@ clearInterval(timer);
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full bg-[#ff5c00]/10 px-3 py-1 text-[11px] font-extrabold tracking-wide text-[#a73a00] uppercase"
                         >
-                            <ShoppingBag class="h-3.5 w-3.5" /> Cemilan Mba
-                            Tutut
+                            <ShoppingBag class="h-3.5 w-3.5" /> {{ namaToko }}
                         </span>
                         <h3
                             class="mt-4 text-2xl leading-tight font-extrabold tracking-tight"
@@ -179,7 +180,7 @@ clearInterval(timer);
 
                         <img
                             src="/images/hero.png"
-                            alt="Cemilan Mba Tutut"
+                            :alt="namaToko"
                             class="pointer-events-none absolute -top-10 -right-6 hidden h-32 w-32 rotate-6 rounded-3xl object-cover shadow-xl ring-4 ring-white sm:block"
                         />
                     </div>

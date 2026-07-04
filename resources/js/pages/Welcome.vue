@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     Sparkles,
     MessageCircle,
@@ -56,23 +56,32 @@ const toggleTheme = () => {
     updateAppearance(appearance.value === 'dark' ? 'light' : 'dark');
 };
 
-// Nomor WhatsApp tujuan (admin Cemilan Mba Tutut)
-const WHATSAPP_NUMBER = '6283114827245';
+// Branding toko aktif — dibagikan lewat HandleInertiaRequests, BUKAN hardcode,
+// agar tiap toko menampilkan nama/kontak/alamatnya sendiri (lihat resources/js/types/toko.ts).
+const toko = computed(() => usePage().props.toko);
+const namaToko = computed(() => toko.value?.nama ?? 'SiKasir');
+const whatsappNumber = computed(() => toko.value?.whatsapp ?? '');
+const alamat = computed(() => toko.value?.alamat ?? '');
+const jamBuka = computed(() => toko.value?.jam_buka ?? '');
+const instagramHandle = computed(() => toko.value?.instagram ?? null);
+const deskripsiToko = computed(
+    () => toko.value?.deskripsi ?? 'Belanja online mudah, langsung dari toko kami.',
+);
 
 const getWhatsAppLink = (productName: string) => {
     const message = encodeURIComponent(
-        `Halo Kak! Saya tertarik untuk memesan produk Cemilan "${productName}" dari Cemilan Mba Tutut. Bagaimana cara memesannya ya?`,
+        `Halo Kak! Saya tertarik untuk memesan produk "${productName}" dari ${namaToko.value}. Bagaimana cara memesannya ya?`,
     );
 
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+    return `https://wa.me/${whatsappNumber.value}?text=${message}`;
 };
 
 const getGeneralWhatsAppLink = () => {
     const message = encodeURIComponent(
-        'Halo Cemilan Mba Tutut! Saya ingin tahu lebih lanjut tentang aneka cemilan & frozen food yang tersedia. Boleh minta daftar menunya?',
+        `Halo ${namaToko.value}! Saya ingin tahu lebih lanjut tentang produk yang tersedia. Boleh minta daftar menunya?`,
     );
 
-    return `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
+    return `https://wa.me/${whatsappNumber.value}?text=${message}`;
 };
 
 // ===== Toast, Keranjang & Katalog — logika dipindah ke composables =====
@@ -171,21 +180,24 @@ const promoOfDay = computed<Product | BestSeller | null>(() => {
 // ===== Lokasi / Maps =====
 // Peta inline pakai OpenStreetMap (frameable & tanpa API key; embed Google
 // "output=embed" kini diblokir X-Frame-Options). Tombol "Buka di Google Maps"
-// tetap mengarah ke Google untuk navigasi/arah.
-// Koordinat persis toko "Cemilan mba Tutut" (dari pin Google Maps) — sesuaikan
-// bila titik usaha bergeser.
-const LOKASI_LAT = -2.5905603;
-const LOKASI_LNG = 115.361494;
-const ALAMAT =
-    'Jl. Putera Harapan, Matang Ginalun, Barabai, Hulu Sungai Tengah, Kalimantan Selatan';
-const mapsEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${
-    LOKASI_LNG - 0.006
-}%2C${LOKASI_LAT - 0.006}%2C${LOKASI_LNG + 0.006}%2C${
-    LOKASI_LAT + 0.006
-}&layer=mapnik&marker=${LOKASI_LAT}%2C${LOKASI_LNG}`;
-const mapsLinkUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    'Cemilan Mba Tutut ' + ALAMAT,
-)}`;
+// tetap mengarah ke Google untuk navigasi/arah. Koordinat & alamat dari toko
+// aktif (bukan hardcode) agar tiap toko menunjuk ke lokasinya sendiri.
+const lokasiLat = computed(() => toko.value?.lokasi_lat ?? 0);
+const lokasiLng = computed(() => toko.value?.lokasi_lng ?? 0);
+const mapsEmbedUrl = computed(
+    () =>
+        `https://www.openstreetmap.org/export/embed.html?bbox=${
+            lokasiLng.value - 0.006
+        }%2C${lokasiLat.value - 0.006}%2C${lokasiLng.value + 0.006}%2C${
+            lokasiLat.value + 0.006
+        }&layer=mapnik&marker=${lokasiLat.value}%2C${lokasiLng.value}`,
+);
+const mapsLinkUrl = computed(
+    () =>
+        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            `${namaToko.value} ${alamat.value}`,
+        )}`,
+);
 
 // ===== Checkout → buat pesanan pending (tersimpan di sistem) =====
 // Langkah keranjang → form data pemesan. Saat dikirim, pesanan langsung
@@ -469,20 +481,11 @@ const promoCountdown = (berakhirPada: string): string | null => {
 </script>
 
 <template>
-    <Head title="Cemilan Mba Tutut — Snack & Frozen Food Rumahan Barabai">
-        <meta
-            name="description"
-            content="Cemilan Mba Tutut: keripik, basreng, makaroni & frozen food rumahan khas Barabai. Mulai 5 ribuan, dibuat tiap hari. Pesan mudah lewat WhatsApp."
-        />
+    <Head :title="`${namaToko} — Toko Online`">
+        <meta name="description" :content="deskripsiToko" />
         <meta property="og:type" content="website" />
-        <meta
-            property="og:title"
-            content="Cemilan Mba Tutut — Snack & Frozen Food Rumahan Barabai"
-        />
-        <meta
-            property="og:description"
-            content="Aneka cemilan mulai 5 ribuan & frozen food rumahan khas Barabai. Pesan mudah lewat WhatsApp."
-        />
+        <meta property="og:title" :content="`${namaToko} — Toko Online`" />
+        <meta property="og:description" :content="deskripsiToko" />
         <meta property="og:image" content="/images/hero.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
@@ -503,7 +506,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                 <AppLogoIcon class="h-9 w-9" />
                 <span
                     class="font-display text-lg font-extrabold tracking-tight text-[var(--kg-primary)] sm:text-xl"
-                    >Cemilan Mba Tutut</span
+                    >{{ namaToko }}</span
                 >
             </a>
 
@@ -620,7 +623,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                     <div class="relative h-full w-full shrink-0">
                         <img
                             src="/images/hero.png"
-                            alt="Rumah Cemilan Mba Tutut, Barabai"
+                            :alt="`Foto usaha ${namaToko}`"
                             class="absolute inset-0 h-full w-full object-cover"
                         />
                         <div
@@ -688,7 +691,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                         <img
                             v-else
                             src="/images/hero.png"
-                            alt="Promo Cemilan Mba Tutut"
+                            :alt="`Promo ${namaToko}`"
                             class="absolute inset-0 h-full w-full object-cover"
                         />
                         <div
@@ -862,7 +865,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                         <span
                             class="h-1.5 w-1.5 rounded-full bg-[var(--kg-primary)]"
                         ></span>
-                        Kenapa Mba Tutut
+                        Kenapa {{ namaToko }}
                     </span>
                     <h2
                         class="mt-3 font-display text-[1.6rem] leading-[1.15] font-extrabold tracking-tight text-balance sm:text-3xl md:text-4xl"
@@ -1296,8 +1299,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                                 <div>
                                     <p class="font-bold">Alamat</p>
                                     <p class="text-sm text-[var(--kg-sec)]">
-                                        Jl. Putera Harapan, Matang Ginalun,
-                                        Barabai, Hulu Sungai Tengah, Kalsel.
+                                        {{ alamat }}
                                     </p>
                                 </div>
                             </li>
@@ -1310,8 +1312,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                                 <div>
                                     <p class="font-bold">Jam buka</p>
                                     <p class="text-sm text-[var(--kg-sec)]">
-                                        Setiap hari, 09.00–21.00 WITA. Jumat &
-                                        hari libur tertentu tutup.
+                                        {{ jamBuka }}
                                     </p>
                                 </div>
                             </li>
@@ -1324,7 +1325,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                                 <div>
                                     <p class="font-bold">Kontak</p>
                                     <p class="text-sm text-[var(--kg-sec)]">
-                                        +62 831-1482-7245 (WhatsApp)
+                                        +{{ whatsappNumber }} (WhatsApp)
                                     </p>
                                 </div>
                             </li>
@@ -1353,7 +1354,7 @@ const promoCountdown = (berakhirPada: string): string | null => {
                     <div class="min-h-[320px] w-full lg:min-h-full">
                         <iframe
                             :src="mapsEmbedUrl"
-                            title="Lokasi Cemilan Mba Tutut di Google Maps"
+                            :title="`Lokasi ${namaToko} di Google Maps`"
                             class="h-full min-h-[320px] w-full border-0"
                             loading="lazy"
                             referrerpolicy="no-referrer-when-downgrade"
@@ -1491,13 +1492,11 @@ const promoCountdown = (berakhirPada: string): string | null => {
                             <AppLogoIcon class="h-9 w-9" />
                             <span
                                 class="font-display text-xl font-extrabold tracking-tight text-[var(--kg-primary)]"
-                                >Cemilan Mba Tutut</span
+                                >{{ namaToko }}</span
                             >
                         </div>
                         <p class="mt-4 max-w-sm text-sm text-[var(--kg-sec)]">
-                            UMKM asal Barabai yang menyajikan aneka cemilan mulai 5
-                            ribuan, kue kering, dan frozen food rumahan. Enak,
-                            terjangkau, dan bikin nagih.
+                            {{ deskripsiToko }}
                         </p>
                         <div class="mt-6 flex gap-3">
                             <a
@@ -1509,7 +1508,8 @@ const promoCountdown = (berakhirPada: string): string | null => {
                                 <MessageCircle class="h-5 w-5" />
                             </a>
                             <a
-                                href="https://instagram.com/rumahcemilan_mbatutut12barabai"
+                                v-if="instagramHandle"
+                                :href="`https://instagram.com/${instagramHandle}`"
                                 target="_blank"
                                 aria-label="Instagram"
                                 class="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--kg-sc)] text-[var(--kg-primary)] transition-colors hover:bg-[var(--kg-signal)] hover:text-white"
@@ -1570,28 +1570,25 @@ const promoCountdown = (berakhirPada: string): string | null => {
                                 <PhoneCall
                                     class="h-4 w-4 shrink-0 text-[var(--kg-primary)]"
                                 />
-                                <span>+62 831-1482-7245</span>
+                                <span>+{{ whatsappNumber }}</span>
                             </li>
-                            <li class="flex items-center gap-2">
+                            <li v-if="instagramHandle" class="flex items-center gap-2">
                                 <Instagram
                                     class="h-4 w-4 shrink-0 text-[var(--kg-primary)]"
                                 />
-                                <span>@rumahcemilan_mbatutut12barabai</span>
+                                <span>@{{ instagramHandle }}</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <MapPin
                                     class="mt-0.5 h-4 w-4 shrink-0 text-[var(--kg-primary)]"
                                 />
-                                <span
-                                    >Jl. Putera Harapan, Matang Ginalun,
-                                    Barabai, HST, Kalsel</span
-                                >
+                                <span>{{ alamat }}</span>
                             </li>
                             <li class="flex items-center gap-2">
                                 <Clock
                                     class="h-4 w-4 shrink-0 text-[var(--kg-primary)]"
                                 />
-                                <span>Setiap hari (kecuali Jumat), 09.00–21.00 WITA</span>
+                                <span>{{ jamBuka }}</span>
                             </li>
                         </ul>
                     </div>
@@ -1601,8 +1598,8 @@ const promoCountdown = (berakhirPada: string): string | null => {
                     class="mt-12 flex flex-col items-center justify-between gap-4 border-t border-black/5 pt-8 text-xs text-[var(--kg-sec)] sm:flex-row dark:border-white/10"
                 >
                     <p>
-                        © 2026 Cemilan Mba Tutut Barabai. Seluruh hak cipta
-                        dilindungi.
+                        © {{ new Date().getFullYear() }} {{ namaToko }}. Seluruh
+                        hak cipta dilindungi.
                     </p>
                     <div class="flex items-center gap-4">
                         <Link

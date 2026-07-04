@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import {
     Search,
     Filter,
@@ -168,8 +168,10 @@ function formatMetode(metode: string): string {
     return labels[metode] ?? metode;
 }
 
+const namaToko = computed(() => usePage().props.toko?.nama ?? 'SiKasir');
+
 function printTransaction(trx: Transaksi): void {
-    printReceipt(trx);
+    printReceipt(trx, namaToko.value);
 }
 
 const isPrinting = ref(false);
