@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LaporanController;
+use App\Http\Controllers\Admin\OnboardingController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\KasirController;
@@ -108,6 +109,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('admin/produksi', [ProduksiController::class, 'index'])->name('admin.produksi');
         Route::post('admin/produksi', [ProduksiController::class, 'store'])->name('admin.produksi.store');
         Route::delete('admin/produksi/{produksi}', [ProduksiController::class, 'destroy'])->name('admin.produksi.destroy');
+
+        // Onboarding (sekali-jalan setelah registrasi mandiri): unduh template & impor produk massal.
+        Route::get('admin/onboarding', [OnboardingController::class, 'index'])->name('admin.onboarding');
+        Route::get('admin/onboarding/template', [OnboardingController::class, 'template'])->name('admin.onboarding.template');
+        Route::post('admin/onboarding/import', [OnboardingController::class, 'import'])->name('admin.onboarding.import');
 
         // Laporan / Analisis
         Route::get('admin/laporan/keuangan', [LaporanController::class, 'keuangan'])->name('admin.laporan.keuangan');

@@ -102,4 +102,11 @@ defineProps<{
             </span>
         </Button>
     </Form>
+
+    <p class="mt-6 text-center text-sm text-[var(--kg-sec)]">
+        Belum punya toko?
+        <TextLink href="/register" :tabindex="6" class="font-semibold text-[var(--kg-primary)]">
+            Daftar di sini
+        </TextLink>
+    </p>
 </template>

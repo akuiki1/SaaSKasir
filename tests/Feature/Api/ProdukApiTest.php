@@ -59,10 +59,21 @@ test('the produk catalog only returns products belonging to the caller\'s toko',
     $tokoLain = Toko::factory()->create();
     Produk::factory()->create(['id_toko' => $tokoLain->id_toko, 'nama' => 'Produk Toko Lain']);
 
-    $kasir = User::factory()->create(['role' => 'kasir']);
-    $produkSendiri = Produk::factory()->create(['id_toko' => $kasir->id_toko, 'nama' => 'Produk Toko Sendiri']);
+    // Toko sendiri dibuat eksplisit (bukan mengandalkan fallback default UserFactory
+    // ke "toko pertama di DB tanpa ORDER BY") -- begitu 2+ toko ada, fallback itu
+    // ambigu dan bisa kebetulan me-resolve ke $tokoLain, membuat test ini flaky.
+    $tokoSendiri = Toko::factory()->create();
+    $kasir = User::factory()->create(['role' => 'kasir', 'id_toko' => $tokoSendiri->id_toko]);
+    $produkSendiri = Produk::factory()->create(['id_toko' => $tokoSendiri->id_toko, 'nama' => 'Produk Toko Sendiri']);
 
     $token = $kasir->createToken('test-device')->plainTextToken;
+
+    // TenantContext adalah singleton yang memoize resolusi sekali per proses
+    // (lihat AppServiceProvider). Query Produk::factory() di atas (sebelum ada
+    // user login) sudah memicu resolusi dini via fallback "toko pertama di DB" --
+    // reset instance-nya di sini supaya request API di bawah me-resolve ulang
+    // dari Auth::user() (kasir) yang sesungguhnya, bukan nilai basi.
+    app()->forgetInstance(\App\Support\TenantContext::class);
 
     $response = $this->withHeader('Authorization', "Bearer {$token}")
         ->getJson('/api/produk');

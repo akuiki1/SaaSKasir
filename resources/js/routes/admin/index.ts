@@ -7,6 +7,7 @@ import transactionsBbd80d from './transactions'
 import pengeluaransC7d7ce from './pengeluarans'
 import stok67e4e1 from './stok'
 import produksi22b192 from './produksi'
+import onboardingC947a0 from './onboarding'
 import laporan from './laporan'
 import promosFc23d1 from './promos'
 import pesananC38bc3 from './pesanan'
@@ -713,6 +714,84 @@ produksi.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     
     produksi.form = produksiForm
 /**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+export const onboarding = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: onboarding.url(options),
+    method: 'get',
+})
+
+onboarding.definition = {
+    methods: ["get","head"],
+    url: '/admin/onboarding',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+onboarding.url = (options?: RouteQueryOptions) => {
+    return onboarding.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+onboarding.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: onboarding.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+onboarding.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: onboarding.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+    const onboardingForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: onboarding.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+        onboardingForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: onboarding.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\OnboardingController::onboarding
+ * @see app/Http/Controllers/Admin/OnboardingController.php:23
+ * @route '/admin/onboarding'
+ */
+        onboardingForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: onboarding.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    onboarding.form = onboardingForm
+/**
 * @see \App\Http\Controllers\PromoController::promos
  * @see app/Http/Controllers/PromoController.php:20
  * @route '/admin/promos'
@@ -878,6 +957,7 @@ transactions: Object.assign(transactions, transactionsBbd80d),
 pengeluarans: Object.assign(pengeluarans, pengeluaransC7d7ce),
 stok: Object.assign(stok, stok67e4e1),
 produksi: Object.assign(produksi, produksi22b192),
+onboarding: Object.assign(onboarding, onboardingC947a0),
 laporan: Object.assign(laporan, laporan),
 promos: Object.assign(promos, promosFc23d1),
 pesanan: Object.assign(pesanan, pesananC38bc3),
