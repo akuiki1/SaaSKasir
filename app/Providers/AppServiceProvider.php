@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
@@ -16,7 +17,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Satu instance per request/proses: semua model tenant-scoped harus
+        // melihat toko aktif yang sama sepanjang request tersebut.
+        $this->app->singleton(TenantContext::class);
     }
 
     /**

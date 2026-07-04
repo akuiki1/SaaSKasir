@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToToko;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Promo extends Model
 {
-    use HasFactory;
+    use BelongsToToko, HasFactory;
 
     /**
      * The primary key associated with the table.

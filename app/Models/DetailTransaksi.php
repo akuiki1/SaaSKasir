@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToToko;
 use Database\Factories\DetailTransaksiFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DetailTransaksi extends Model
 {
     /** @use HasFactory<DetailTransaksiFactory> */
-    use HasFactory;
+    use BelongsToToko, HasFactory;
 
     protected $primaryKey = 'id_detail_transaksi';
 

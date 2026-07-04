@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToToko;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Pengeluaran extends Model
 {
-    use HasFactory;
+    use BelongsToToko, HasFactory;
 
     protected $primaryKey = 'id_pengeluaran';
 

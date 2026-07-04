@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToToko;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -14,7 +16,7 @@ class Produk extends Model
 {
     // SoftDeletes: "Arsipkan" produk (sembunyikan dari katalog/kasir/stok/laporan
     // tapi pertahankan riwayat). deleted_at = waktu diarsipkan.
-    use HasFactory, SoftDeletes;
+    use BelongsToToko, HasFactory, SoftDeletes;
 
     protected $primaryKey = 'id_produk';
 
@@ -75,8 +77,8 @@ class Produk extends Model
      * Bila nominal di bawah tarif terendah, dipakai tarif terendah. Mengembalikan
      * null bila produk belum punya tarif bertingkat (artinya fee diketik manual).
      *
-     * @param  \Illuminate\Support\Collection<int, TarifJasa>|null  $tarifs  daftar
-     *         tarif yang sudah dimuat (opsional) — untuk menghindari query ulang.
+     * @param  Collection<int, TarifJasa>|null  $tarifs  daftar
+     *                                                   tarif yang sudah dimuat (opsional) — untuk menghindari query ulang.
      */
     public function resolveFeeJasa(int $nominal, $tarifs = null): ?int
     {
