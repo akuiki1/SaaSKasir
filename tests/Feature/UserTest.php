@@ -3,8 +3,62 @@
 use App\Models\DetailTransaksi;
 use App\Models\Produk;
 use App\Models\Promo;
+use App\Models\Toko;
 use App\Models\Transaksi;
 use App\Models\User;
+
+/*
+|--------------------------------------------------------------------------
+| Isolasi multi-tenant: User tidak memakai trait BelongsToToko (lihat
+| catatan di model), jadi UserController men-scope manual — pastikan itu
+| benar-benar mencegah admin satu toko melihat/mengubah staf toko lain.
+|--------------------------------------------------------------------------
+*/
+
+test('admin only sees staff from their own toko', function () {
+    $tokoA = Toko::factory()->create();
+    $tokoB = Toko::factory()->create();
+
+    $adminA = User::factory()->create(['role' => 'admin', 'id_toko' => $tokoA->id_toko]);
+    User::factory()->count(2)->create(['role' => 'kasir', 'id_toko' => $tokoA->id_toko]);
+    User::factory()->count(3)->create(['role' => 'kasir', 'id_toko' => $tokoB->id_toko]);
+
+    $this->actingAs($adminA)->get(route('admin.users'))
+        ->assertInertia(fn ($page) => $page
+            ->component('admin/Users')
+            ->has('users.data', 3) // adminA + 2 kasir toko A, bukan 6
+            ->where('stats.total_users', 3)
+        );
+});
+
+test('admin cannot update a staff member from another toko', function () {
+    $tokoA = Toko::factory()->create();
+    $tokoB = Toko::factory()->create();
+
+    $adminA = User::factory()->create(['role' => 'admin', 'id_toko' => $tokoA->id_toko]);
+    $kasirB = User::factory()->create(['role' => 'kasir', 'id_toko' => $tokoB->id_toko, 'name' => 'Kasir Toko B']);
+
+    $this->actingAs($adminA)->put(route('admin.users.update', $kasirB->id), [
+        'name' => 'Diganti Paksa',
+        'email' => $kasirB->email,
+        'role' => 'kasir',
+    ])->assertNotFound();
+
+    $this->assertDatabaseHas('users', ['id' => $kasirB->id, 'name' => 'Kasir Toko B']);
+});
+
+test('admin cannot delete a staff member from another toko', function () {
+    $tokoA = Toko::factory()->create();
+    $tokoB = Toko::factory()->create();
+
+    $adminA = User::factory()->create(['role' => 'admin', 'id_toko' => $tokoA->id_toko]);
+    $kasirB = User::factory()->create(['role' => 'kasir', 'id_toko' => $tokoB->id_toko]);
+
+    $this->actingAs($adminA)->delete(route('admin.users.destroy', $kasirB->id))
+        ->assertNotFound();
+
+    $this->assertDatabaseHas('users', ['id' => $kasirB->id]);
+});
 
 test('admin can view users page with data', function () {
     $admin = User::factory()->create(['role' => 'admin']);

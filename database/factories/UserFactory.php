@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Toko;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,12 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            // User tidak memakai trait BelongsToToko (lihat catatan di model),
+            // jadi factory perlu mengisi id_toko sendiri. Default ke toko yang
+            // sudah ada di DB (bukan Toko::factory() baru) supaya user-user
+            // yang dibuat dalam satu test berbagi toko yang sama, selaras
+            // dengan asumsi test lama yang single-tenant.
+            'id_toko' => Toko::query()->value('id_toko'),
         ];
     }
 
