@@ -6,12 +6,11 @@ use App\Http\Controllers\Concerns\ResolvesPerPage;
 use App\Models\Produk;
 use App\Models\Produksi;
 use App\Models\ProduksiBiaya;
+use App\Services\ProduksiService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -70,7 +69,7 @@ class ProduksiController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ProduksiService $service): RedirectResponse
     {
         $validated = $request->validate([
             'id_produk' => [
@@ -89,64 +88,7 @@ class ProduksiController extends Controller
             'id_produk.exists' => 'Produk harus berupa produk buatan sendiri (jenis produksi).',
         ]);
 
-        DB::transaction(function () use ($validated): void {
-            // Mode eksplisit diutamakan; jika tak ada, deteksi dari ada/tidaknya rincian.
-            $mode = $validated['mode'] ?? (! empty($validated['biayas']) ? 'rinci' : 'sederhana');
-
-            if ($mode === 'rinci') {
-                $biayas = $validated['biayas'] ?? [];
-
-                if (count($biayas) === 0) {
-                    throw ValidationException::withMessages([
-                        'biayas' => 'Tambahkan minimal satu rincian biaya bahan.',
-                    ]);
-                }
-
-                $totalBiaya = (int) collect($biayas)->sum('nominal');
-            } else {
-                $totalBiaya = (int) ($validated['total_biaya'] ?? 0);
-            }
-
-            if ($totalBiaya <= 0) {
-                throw ValidationException::withMessages([
-                    'total_biaya' => 'Total biaya produksi harus lebih dari 0 (isi total atau rincian bahan).',
-                ]);
-            }
-
-            $modalPerUnit = (int) round($totalBiaya / $validated['jumlah']);
-
-            $produksi = Produksi::create([
-                'id_produk' => $validated['id_produk'],
-                'jumlah' => $validated['jumlah'],
-                'total_biaya' => $totalBiaya,
-                'modal_per_unit' => $modalPerUnit,
-                'catatan' => $validated['catatan'] ?? null,
-            ]);
-
-            // Rincian biaya hanya disimpan pada mode rinci.
-            if ($mode === 'rinci') {
-                foreach ($validated['biayas'] as $biaya) {
-                    ProduksiBiaya::create([
-                        'id_produksi' => $produksi->id_produksi,
-                        'nama' => $biaya['nama'],
-                        'nominal' => $biaya['nominal'],
-                    ]);
-                }
-            }
-
-            // Produksi menambah stok barang jadi & memperbarui modal per unit produk.
-            $produk = Produk::lockForUpdate()->findOrFail($validated['id_produk']);
-            $produk->terapkanMutasiStok(
-                (float) $validated['jumlah'],
-                'produksi',
-                [
-                    'keterangan' => 'Batch produksi #'.$produksi->id_produksi,
-                    'ref_tipe' => 'Produksi',
-                    'id_referensi' => $produksi->id_produksi,
-                ]
-            );
-            $produk->update(['harga_modal' => $modalPerUnit]);
-        });
+        $service->catat($validated);
 
         return redirect()->route('admin.produksi')->with('success', 'Batch produksi berhasil dicatat.');
     }
@@ -154,26 +96,9 @@ class ProduksiController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Produksi $produksi): RedirectResponse
+    public function destroy(Produksi $produksi, ProduksiService $service): RedirectResponse
     {
-        DB::transaction(function () use ($produksi): void {
-            // Kembalikan stok barang jadi yang sempat ditambahkan batch ini.
-            $produk = Produk::lockForUpdate()->find($produksi->id_produk);
-
-            if ($produk) {
-                $produk->terapkanMutasiStok(
-                    -(float) $produksi->jumlah,
-                    'produksi_batal',
-                    [
-                        'keterangan' => 'Pembatalan batch produksi #'.$produksi->id_produksi,
-                        'ref_tipe' => 'Produksi',
-                        'id_referensi' => $produksi->id_produksi,
-                    ]
-                );
-            }
-
-            $produksi->delete(); // biaya ikut terhapus (cascade)
-        });
+        $service->hapus($produksi);
 
         return redirect()->route('admin.produksi')->with('success', 'Batch produksi berhasil dihapus.');
     }

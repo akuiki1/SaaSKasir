@@ -636,7 +636,7 @@ stok.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     stok.form = stokForm
 /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
 export const produksi = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -651,7 +651,7 @@ produksi.definition = {
 
 /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
 produksi.url = (options?: RouteQueryOptions) => {
@@ -660,7 +660,7 @@ produksi.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
 produksi.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -669,7 +669,7 @@ produksi.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
 produksi.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -679,7 +679,7 @@ produksi.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
     const produksiForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -689,7 +689,7 @@ produksi.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
         produksiForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -698,7 +698,7 @@ produksi.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\ProduksiController::produksi
- * @see app/Http/Controllers/ProduksiController.php:25
+ * @see app/Http/Controllers/ProduksiController.php:24
  * @route '/admin/produksi'
  */
         produksiForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
