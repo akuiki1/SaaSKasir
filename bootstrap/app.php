@@ -34,7 +34,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Rute sinkronisasi offline PWA hidup di grup web (sesi + CSRF) tapi
+        // dipanggil oleh fetch — perlu error JSON (401/422), bukan redirect,
+        // agar syncEngine bisa membedakan konflik stok (422) dari kegagalan lain.
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            fn (Request $request) => $request->is('api/*')
+                || $request->is('kasir/transaksi/sync'),
         );
     })->create();

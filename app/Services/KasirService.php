@@ -27,6 +27,19 @@ class KasirService
      */
     public function jual(array $validated, int $userId): Transaksi
     {
+        // Idempotensi sinkronisasi offline: bila penjualan dengan client_uid ini
+        // sudah tercatat (retry setelah jaringan berkedip), kembalikan yang lama —
+        // JANGAN buat & potong stok dua kali. Query auto-scoped ke toko via
+        // BelongsToToko; unique index DB adalah jaring pengaman terhadap race.
+        // Pemanggil membedakan hit idempoten via $transaksi->wasRecentlyCreated.
+        if (! empty($validated['client_uid'])) {
+            $existing = Transaksi::where('client_uid', $validated['client_uid'])->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         return DB::transaction(function () use ($validated, $userId): Transaksi {
             $now = now();
 
@@ -84,6 +97,8 @@ class KasirService
                 'metode_pembayaran' => $validated['metode_pembayaran'],
                 'bayar' => $validated['bayar'],
                 'kembalian' => $validated['bayar'] - $totalTagihan,
+                // Idempotensi sync offline: null untuk penjualan web biasa.
+                'client_uid' => $validated['client_uid'] ?? null,
             ]);
 
             $this->simpanDetailDanStok($transaksi, $details, $userId);

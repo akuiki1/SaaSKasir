@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Produk;
+use App\Models\Transaksi;
 use App\Models\User;
 
 /*
@@ -82,4 +83,38 @@ test('the API sale endpoint validates stock via the same rules as the web cashie
                 ['id_produk' => $produk->id_produk, 'jumlah' => 5],
             ],
         ])->assertStatus(422);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Idempotensi client_uid (dipakai sinkronisasi offline via KasirService::jual)
+|--------------------------------------------------------------------------
+*/
+
+test('re-sending a sale with the same client_uid is idempotent (no double-charge)', function () {
+    $kasir = User::factory()->create(['role' => 'kasir']);
+    $produk = Produk::factory()->create(['tipe_jual' => 'satuan', 'harga_jual' => 10000, 'stok' => 10]);
+
+    $token = $kasir->createToken('test-device')->plainTextToken;
+    $uid = '11111111-1111-4111-8111-111111111111';
+    $payload = [
+        'metode_pembayaran' => 'cash',
+        'bayar' => 20000,
+        'client_uid' => $uid,
+        'items' => [
+            ['id_produk' => $produk->id_produk, 'jumlah' => 2],
+        ],
+    ];
+
+    $first = $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/transaksi', $payload)->assertCreated();
+    $second = $this->withHeader('Authorization', "Bearer {$token}")
+        ->postJson('/api/transaksi', $payload)->assertOk();
+
+    // Retry mengembalikan transaksi yang sama, bukan yang baru.
+    expect($second->json('id_transaksi'))->toBe($first->json('id_transaksi'));
+
+    // Hanya SATU transaksi tercatat & stok berkurang HANYA sekali.
+    expect(Transaksi::where('client_uid', $uid)->count())->toBe(1);
+    expect((float) $produk->fresh()->stok)->toBe(8.0);
 });

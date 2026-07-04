@@ -31,3 +31,16 @@ initializeTheme();
 
 // This will listen for flash toast data from the server...
 initializeFlashToast();
+
+// Daftarkan service worker PWA (produksi saja — di dev, vite-plugin-pwa nonaktif).
+// registerType 'prompt': versi SW baru MENUNGGU sampai semua tab app ditutup,
+// jadi tidak ada reload mendadak di tengah transaksi. Dibungkus try/catch dinamis
+// agar kegagalan (mis. header Service-Worker-Allowed belum ada) tidak mematikan app —
+// antrean offline (IndexedDB) tetap berfungsi tanpa service worker.
+if (import.meta.env.PROD) {
+    import('virtual:pwa-register')
+        .then(({ registerSW }) => registerSW({ immediate: true }))
+        .catch(() => {
+            /* SW opsional: abaikan bila registrasi gagal */
+        });
+}

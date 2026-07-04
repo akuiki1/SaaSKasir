@@ -380,6 +380,36 @@ class KasirController extends Controller
     }
 
     /**
+     * Sinkronisasi satu penjualan dari antrean offline PWA. Beda dari store():
+     * mengembalikan JSON (bukan redirect Inertia) karena dipanggil oleh fetch
+     * dari syncEngine, dan wajib menyertakan client_uid untuk idempotensi.
+     * Memakai sesi web + CSRF yang sama dengan halaman — andal same-origin.
+     */
+    public function sync(Request $request, KasirService $kasirService): JsonResponse
+    {
+        $validated = $request->validate([
+            'metode_pembayaran' => ['required', Rule::in(['cash', 'qris', 'transfer'])],
+            'bayar' => ['required', 'integer', 'min:0'],
+            'id_pelanggan' => ['nullable', 'exists:pelanggans,id_pelanggan'],
+            'client_uid' => ['required', 'uuid'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.id_produk' => ['required', 'exists:produks,id_produk'],
+            'items.*.jumlah' => ['required', 'numeric', 'gt:0'],
+            'items.*.nominal' => ['nullable', 'integer', 'min:1'],
+            'items.*.fee' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        // jual() idempoten terhadap client_uid: retry mengembalikan yang lama.
+        $transaksi = $kasirService->jual($validated, Auth::id());
+
+        return response()->json([
+            'id_transaksi' => $transaksi->id_transaksi,
+            'kode' => 'TRX-'.$transaksi->id_transaksi,
+            'client_uid' => $transaksi->client_uid,
+        ], $transaksi->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
      * Simpan keranjang kasir sebagai PESANAN pending (reserve stok) — untuk
      * pelanggan walk-in yang belum bayar. Hanya produk satuan yang didukung.
      */

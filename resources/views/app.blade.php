@@ -34,6 +34,11 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+        {{-- PWA: manifest dihasilkan vite-plugin-pwa ke /build/. Di dev murni (vite hot)
+             file ini belum ada — 404-nya tidak fatal. --}}
+        <link rel="manifest" href="/build/manifest.webmanifest">
+        <meta name="theme-color" content="#059669">
+
         @fonts
 
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])

@@ -1,0 +1,1 @@
+import{H as e,O as t,St as n,p as r,tt as i,w as a,x as o}from"./createLucideIcon-CjvIwW-M.js";var s={class:`text-sm text-red-600 dark:text-red-500`},c=t({__name:`InputError`,props:{message:{}},setup(t){return(c,l)=>i((e(),a(`div`,null,[o(`p`,s,n(t.message),1)],512)),[[r,t.message]])}});export{c as t};

@@ -1,0 +1,1 @@
+import{C as e,G as t,H as n,O as r,S as i,ut as a,v as o,z as s}from"./createLucideIcon-CjvIwW-M.js";var c=r({__name:`BodyTeleport`,setup(r){let c=a(!1);return s(()=>{c.value=!0}),(r,a)=>c.value?(n(),i(o,{key:0,to:`body`},[t(r.$slots,`default`)])):e(``,!0)}});export{c as t};

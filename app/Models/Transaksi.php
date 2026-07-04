@@ -25,6 +25,9 @@ class Transaksi extends Model
         'metode_pembayaran',
         'bayar',
         'kembalian',
+        // Idempotensi sinkronisasi offline (bukan data tenant-sensitif). Diisi
+        // hanya oleh transaksi hasil antrean PWA; penjualan web biasa null.
+        'client_uid',
     ];
 
     protected $casts = [

@@ -25,6 +25,10 @@ import {
     Phone,
     CheckCircle2,
     Printer,
+    WifiOff,
+    RefreshCw,
+    TriangleAlert,
+    CloudUpload,
 } from 'lucide-vue-next';
 import {
     ref,
@@ -36,10 +40,19 @@ import {
 } from 'vue';
 import { toast } from 'vue-sonner';
 import Pagination from '@/components/Pagination.vue';
+import { useOffline } from '@/composables/useOffline';
 import { usePagination } from '@/composables/usePagination';
 import { formatRupiah } from '@/lib/format';
+import {
+    conflictSales,
+    discardSale,
+    enqueueSale
+    
+    
+} from '@/lib/offlineDb';
+import type {QueuedSale, SalePayload} from '@/lib/offlineDb';
 import { printReceipt } from '@/lib/struk';
-import type { StrukData } from '@/lib/struk';
+import type { StrukData, StrukDetail } from '@/lib/struk';
 import { store as kasirTransaksiStore } from '@/routes/kasir/transaksi';
 
 defineOptions({
@@ -1011,6 +1024,211 @@ function cetakStruk(): void {
 function tutupStrukSelesai(): void {
     showStrukSelesai.value = false;
     lastStruk.value = null;
+    lastStrukOffline.value = false;
+}
+
+// ===== Mode offline (PWA): antre transaksi saat internet mati, sinkron saat online =====
+const {
+    online,
+    pendingCount,
+    conflictCount,
+    syncing,
+    sync: syncOffline,
+    refresh: refreshOffline,
+} = useOffline();
+
+// Struk yang sedang ditampilkan berasal dari antrean luring (bukan final server).
+const lastStrukOffline = ref(false);
+
+// Jasa (transfer/tarik tunai) TIDAK bisa diproses offline — fee sering berjenjang
+// & menyangkut uang titipan; wajib online.
+const hasJasaInCart = computed(() =>
+    cartItems.value.some((item) => item.tipe_jual === 'jasa'),
+);
+
+const BULAN_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+function formatTanggalId(d: Date): string {
+    return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function newClientUid(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+
+        return v.toString(16);
+    });
+}
+
+/** Item payload untuk /api/transaksi — sama persis dgn jalur web online. */
+function buildItems(): SalePayload['items'] {
+    return cartItems.value.map((item) => {
+        if (item.tipe_jual === 'curah') {
+            return {
+                id_produk: item.id_produk,
+                jumlah: item.qty,
+                nominal: Math.floor(Number(item.nominal) || 0),
+            };
+        }
+
+        if (item.tipe_jual === 'jasa') {
+            return {
+                id_produk: item.id_produk,
+                jumlah: 1,
+                nominal: Math.floor(Number(item.nominal) || 0),
+                fee: Math.floor(Number(item.fee) || 0),
+            };
+        }
+
+        return { id_produk: item.id_produk, jumlah: item.qty };
+    });
+}
+
+function buildSalePayload(clientUid: string): SalePayload {
+    return {
+        metode_pembayaran: form.metode_pembayaran,
+        bayar: Math.floor(Number(form.bayar) || 0),
+        id_pelanggan: form.id_pelanggan,
+        client_uid: clientUid,
+        items: buildItems(),
+    };
+}
+
+/** Struk provisional dihitung client-side (server tetap otoritas angka final saat sync). */
+function buildLocalStruk(clientUid: string): StrukData {
+    const now = new Date();
+
+    const details: StrukDetail[] = cartItems.value.map((item) => {
+        if (item.tipe_jual === 'jasa') {
+            return {
+                nama_produk: item.nama,
+                jumlah: 1,
+                harga: item.fee,
+                subtotal: item.fee,
+                nominal: Math.floor(Number(item.nominal) || 0),
+                foto: item.foto,
+                foto_url: item.foto_url ?? null,
+            };
+        }
+
+        const promoDiskon = calculateItemPromoDiscount(item);
+
+        return {
+            nama_produk: item.nama,
+            jumlah: item.qty,
+            harga: item.harga,
+            subtotal: Math.max(0, item.subtotal - promoDiskon),
+            nominal: null,
+            foto: item.foto,
+            foto_url: item.foto_url ?? null,
+        };
+    });
+
+    return {
+        kode: `LURING-${clientUid.slice(0, 8).toUpperCase()}`,
+        tanggal: formatTanggalId(now),
+        waktu: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WITA`,
+        total_harga: totalAfterDiscount.value,
+        diskon: totalDiscount.value,
+        metode_pembayaran: form.metode_pembayaran,
+        bayar: Math.floor(Number(form.bayar) || 0),
+        kembalian: kembalian.value,
+        details,
+    };
+}
+
+async function submitOffline(): Promise<void> {
+    if (hasJasaInCart.value) {
+        toast.warning('Transaksi jasa butuh koneksi', {
+            description:
+                'Transfer/tarik tunai tidak bisa diproses offline. Sambungkan internet dulu.',
+        });
+        cartOpen.value = true;
+
+        return;
+    }
+
+    const clientUid = newClientUid();
+    const struk = buildLocalStruk(clientUid);
+
+    await enqueueSale(buildSalePayload(clientUid), struk);
+    await refreshOffline();
+    void syncOffline(); // coba kirim langsung; no-op bila memang masih offline
+
+    lastStruk.value = struk;
+    lastStrukOffline.value = true;
+    showStrukSelesai.value = true;
+
+    // Bersihkan keranjang & form seperti jalur online yang sukses.
+    cartItems.value = [];
+    form.bayar = '';
+    form.id_pelanggan = null;
+    selectedPelanggan.value = null;
+    pelangganQuery.value = '';
+    pelangganResults.value = props.pelanggans;
+    cartOpen.value = false;
+
+    toast.success('Tersimpan luring', {
+        description: 'Transaksi masuk antrean & tersinkron otomatis saat online.',
+    });
+}
+
+async function sinkronSekarang(): Promise<void> {
+    const res = await syncOffline();
+
+    if (!res) {
+        return;
+    }
+
+    if (res.authExpired) {
+        toast.error('Sesi berakhir', {
+            description: 'Muat ulang halaman lalu login lagi untuk menyinkron.',
+        });
+
+        return;
+    }
+
+    if (res.synced > 0) {
+        toast.success(`${res.synced} transaksi tersinkron`);
+    }
+
+    if (res.conflict > 0) {
+        toast.warning(`${res.conflict} transaksi bermasalah`, {
+            description: 'Tinjau lewat tombol "Bermasalah".',
+        });
+    }
+
+    if (res.synced === 0 && res.conflict === 0 && res.failed > 0) {
+        toast.error('Gagal menyinkron', {
+            description: 'Coba lagi saat koneksi stabil.',
+        });
+    }
+}
+
+// ---- Tinjau transaksi bermasalah (konflik saat sync) ----
+const showKonflik = ref(false);
+const konflikList = ref<QueuedSale[]>([]);
+
+async function bukaKonflik(): Promise<void> {
+    konflikList.value = await conflictSales();
+    showKonflik.value = true;
+}
+
+async function hapusKonflik(clientUid: string): Promise<void> {
+    await discardSale(clientUid);
+    konflikList.value = konflikList.value.filter(
+        (sale) => sale.client_uid !== clientUid,
+    );
+    await refreshOffline();
+}
+
+function cetakKonflik(sale: QueuedSale): void {
+    printReceipt(sale.struk, namaToko.value);
 }
 
 onMounted(() => {
@@ -1139,6 +1357,13 @@ function submitTransaction() {
         return;
     }
 
+    // Offline: antre di IndexedDB + struk lokal, sinkron otomatis saat online.
+    if (!online.value) {
+        void submitOffline();
+
+        return;
+    }
+
     form.items = cartItems.value.map((item) => {
         if (item.tipe_jual === 'curah') {
             return {
@@ -1180,6 +1405,58 @@ function submitTransaction() {
     <Head title="Transaksi Baru - Kasir" />
 
     <div class="@container/pos relative">
+        <!-- ============ Banner status offline / antrean sinkron ============ -->
+        <div
+            v-if="!online || pendingCount > 0 || conflictCount > 0"
+            class="flex flex-wrap items-center gap-2 px-4 py-2 text-xs @2xl/pos:px-6"
+            :class="
+                !online
+                    ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
+                    : 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+            "
+        >
+            <span class="inline-flex items-center gap-1.5 font-semibold">
+                <WifiOff v-if="!online" class="h-4 w-4" />
+                <CloudUpload v-else class="h-4 w-4" />
+                {{
+                    !online
+                        ? 'Mode Offline — transaksi masuk antrean'
+                        : 'Tersambung'
+                }}
+            </span>
+
+            <span
+                v-if="pendingCount > 0"
+                class="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 font-medium tabular-nums dark:bg-black/20"
+            >
+                {{ pendingCount }} menunggu sinkron
+            </span>
+
+            <button
+                v-if="pendingCount > 0 && online"
+                type="button"
+                :disabled="syncing"
+                class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-emerald-500/40 px-2 py-0.5 font-semibold transition-colors hover:bg-white/50 disabled:opacity-60 dark:hover:bg-black/20"
+                @click="sinkronSekarang"
+            >
+                <RefreshCw
+                    class="h-3.5 w-3.5"
+                    :class="syncing && 'animate-spin'"
+                />
+                Sinkron sekarang
+            </button>
+
+            <button
+                v-if="conflictCount > 0"
+                type="button"
+                class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-red-400/60 bg-red-500/10 px-2 py-0.5 font-semibold text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
+                @click="bukaKonflik"
+            >
+                <TriangleAlert class="h-3.5 w-3.5" />
+                {{ conflictCount }} bermasalah
+            </button>
+        </div>
+
         <div
             class="flex min-h-[calc(100svh-4rem)] flex-col @2xl/pos:min-h-[calc(100svh-5rem)] @2xl/pos:flex-row @2xl/pos:gap-4 @2xl/pos:p-4 @5xl/pos:gap-6 @5xl/pos:p-6"
         >
@@ -2393,9 +2670,16 @@ function submitTransaction() {
                     >
                         <CheckCircle2 class="h-8 w-8" />
                     </div>
-                    <h2 class="mt-4 text-lg font-bold">Transaksi Selesai</h2>
+                    <h2 class="mt-4 text-lg font-bold">
+                        {{ lastStrukOffline ? 'Tersimpan Luring' : 'Transaksi Selesai' }}
+                    </h2>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        {{ lastStruk.kode }} berhasil disimpan.
+                        <template v-if="lastStrukOffline">
+                            Masuk antrean — tersinkron otomatis saat online.
+                        </template>
+                        <template v-else>
+                            {{ lastStruk.kode }} berhasil disimpan.
+                        </template>
                     </p>
 
                     <div
@@ -2440,6 +2724,101 @@ function submitTransaction() {
                         >
                             Selesai
                         </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- ============ Modal "Transaksi Bermasalah" (konflik saat sinkron) ============ -->
+        <Teleport to="body">
+            <div
+                v-if="showKonflik"
+                class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+                @click.self="showKonflik = false"
+            >
+                <div
+                    class="flex max-h-[85svh] w-full max-w-md flex-col rounded-2xl border border-sidebar-border/70 bg-card shadow-2xl dark:border-sidebar-border"
+                >
+                    <div
+                        class="flex items-start gap-3 border-b border-sidebar-border/70 p-5 dark:border-sidebar-border"
+                    >
+                        <div
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400"
+                        >
+                            <TriangleAlert class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-base font-bold">
+                                Transaksi Bermasalah
+                            </h2>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                                Ditolak server saat sinkron (mis. stok berubah).
+                                Tinjau, cetak ulang bila perlu, lalu tandai
+                                selesai.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-slate-100 dark:hover:bg-zinc-800"
+                            @click="showKonflik = false"
+                        >
+                            <X class="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-4">
+                        <p
+                            v-if="konflikList.length === 0"
+                            class="py-6 text-center text-sm text-muted-foreground"
+                        >
+                            Tidak ada transaksi bermasalah.
+                        </p>
+
+                        <ul v-else class="space-y-3">
+                            <li
+                                v-for="sale in konflikList"
+                                :key="sale.client_uid"
+                                class="rounded-xl border border-sidebar-border/70 bg-background p-3.5 dark:border-sidebar-border"
+                            >
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-semibold tabular-nums">{{
+                                        sale.struk.kode
+                                    }}</span>
+                                    <span
+                                        class="text-sm font-bold tabular-nums"
+                                        >{{
+                                            formatRupiah(sale.struk.total_harga)
+                                        }}</span
+                                    >
+                                </div>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    {{ sale.struk.tanggal }} {{ sale.struk.waktu }}
+                                </p>
+                                <p
+                                    class="mt-1.5 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-300"
+                                >
+                                    {{ sale.error }}
+                                </p>
+                                <div class="mt-2.5 flex gap-2">
+                                    <button
+                                        type="button"
+                                        class="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-sidebar-border/70 bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-slate-50 dark:border-sidebar-border dark:hover:bg-zinc-800/40"
+                                        @click="cetakKonflik(sale)"
+                                    >
+                                        <Printer class="h-3.5 w-3.5" />
+                                        Cetak
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-500"
+                                        @click="hapusKonflik(sale.client_uid)"
+                                    >
+                                        <Trash2 class="h-3.5 w-3.5" />
+                                        Tandai selesai
+                                    </button>
+                                </div>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>

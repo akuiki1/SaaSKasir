@@ -1,3 +1,11 @@
+# Izinkan service worker (public/build/sw.js) memakai scope root '/' sehingga
+# bisa mengintersep navigasi /kasir/* untuk mode offline PWA SiKasir.
+<IfModule mod_headers.c>
+    <Files "sw.js">
+        Header set Service-Worker-Allowed "/"
+    </Files>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

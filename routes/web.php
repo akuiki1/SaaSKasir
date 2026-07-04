@@ -147,6 +147,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('kasir/transaksi', [KasirController::class, 'transaksi'])->name('kasir.transaksi');
         Route::get('kasir/pelanggan/cari', [KasirController::class, 'cariPelanggan'])->name('kasir.pelanggan.cari');
         Route::post('kasir/transaksi', [KasirController::class, 'store'])->name('kasir.transaksi.store');
+        // Sinkronisasi antrean transaksi offline PWA → JSON (bukan Inertia). Memakai
+        // sesi web + CSRF yang sama dengan halaman kasir (andal same-origin, tak
+        // bergantung SANCTUM_STATEFUL_DOMAINS). Idempoten via client_uid.
+        Route::post('kasir/transaksi/sync', [KasirController::class, 'sync'])->name('kasir.transaksi.sync');
         Route::get('kasir/riwayat', [KasirController::class, 'riwayat'])->name('kasir.riwayat');
         Route::get('kasir/riwayat/cetak', [KasirController::class, 'riwayatCetak'])->name('kasir.riwayat.cetak');
 
