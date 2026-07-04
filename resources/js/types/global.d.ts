@@ -1,4 +1,5 @@
 import type { Auth } from '@/types/auth';
+import type { Langganan } from '@/types/langganan';
 import type { Toko } from '@/types/toko';
 
 // Extend ImportMeta interface for Vite...
@@ -25,6 +26,7 @@ declare module '@inertiajs/core' {
                 stokMenipis: number;
             } | null;
             toko: Toko | null;
+            langganan: Langganan | null;
             [key: string]: unknown;
         };
     }

@@ -6,6 +6,7 @@ use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Models\Toko;
 use App\Services\PesananService;
+use App\Support\Langganan;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -54,6 +55,30 @@ class HandleInertiaRequests extends Middleware
             // dievaluasi setelah middleware route (mis. ResolveTenant untuk
             // rute publik) selesai menentukan toko aktif di TenantContext.
             'toko' => fn () => $this->tokoBranding(),
+            // Status langganan + peta fitur ber-gate → boolean akses, untuk
+            // mengunci menu/UI di frontend. Closure (alasan sama dgn 'toko').
+            'langganan' => fn () => $this->langgananInfo(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function langgananInfo(): ?array
+    {
+        $toko = app(TenantContext::class)->toko();
+
+        if (! $toko) {
+            return null;
+        }
+
+        $tierEfektif = $toko->tierEfektif();
+
+        return [
+            'tier' => $tierEfektif,
+            'tier_langganan' => $toko->tier,
+            'langganan_sampai' => $toko->langganan_sampai?->toDateString(),
+            'fitur' => Langganan::fiturUntukTier($tierEfektif),
         ];
     }
 

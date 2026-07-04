@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { Lock } from 'lucide-vue-next';
 import { computed } from 'vue';
 import {
     SidebarMenuBadge,
@@ -57,6 +58,11 @@ const dotClass = computed(() =>
                 />
                 <component :is="item.icon" />
                 <span>{{ item.title }}</span>
+                <!-- Gembok fitur terkunci (paywall); href sudah diarahkan ke langganan. -->
+                <Lock
+                    v-if="item.locked"
+                    class="ml-auto size-3.5 text-sidebar-foreground/40 group-data-[collapsible=icon]:hidden"
+                />
             </Link>
         </SidebarMenuButton>
 

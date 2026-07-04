@@ -21,6 +21,8 @@ export type NavItem = {
     highlight?: boolean;
     /** Badge hitungan (mis. pesanan aktif / stok menipis). */
     badge?: NavBadge;
+    /** Fitur terkunci paywall — tampilkan gembok; href sudah diarahkan ke langganan. */
+    locked?: boolean;
 };
 
 export type NavGroup = {

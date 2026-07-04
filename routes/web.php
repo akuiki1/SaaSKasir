@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LanggananController;
 use App\Http\Controllers\Admin\LaporanController;
 use App\Http\Controllers\Admin\OnboardingController;
 use App\Http\Controllers\Admin\UserController;
@@ -116,10 +117,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('admin/onboarding/import', [OnboardingController::class, 'import'])->name('admin.onboarding.import');
 
         // Laporan / Analisis
-        Route::get('admin/laporan/keuangan', [LaporanController::class, 'keuangan'])->name('admin.laporan.keuangan');
+        // Laporan Keuangan (Laba Rugi) di balik paywall Warung+ — lihat config/langganan.php.
+        Route::get('admin/laporan/keuangan', [LaporanController::class, 'keuangan'])
+            ->middleware('fitur:laporan_keuangan')
+            ->name('admin.laporan.keuangan');
         Route::get('admin/laporan/penjualan', [LaporanController::class, 'penjualan'])->name('admin.laporan.penjualan');
         Route::get('admin/laporan/inventaris', [LaporanController::class, 'inventaris'])->name('admin.laporan.inventaris');
         Route::get('admin/laporan/pelanggan', [LaporanController::class, 'pelanggan'])->name('admin.laporan.pelanggan');
+
+        // Langganan (status tier, perbandingan, riwayat, CTA upgrade).
+        Route::get('admin/langganan', [LanggananController::class, 'index'])->name('admin.langganan');
 
         // Promo
         Route::get('admin/promos', [PromoController::class, 'index'])->name('admin.promos');

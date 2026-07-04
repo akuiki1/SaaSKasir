@@ -792,6 +792,84 @@ onboarding.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     
     onboarding.form = onboardingForm
 /**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+export const langganan = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: langganan.url(options),
+    method: 'get',
+})
+
+langganan.definition = {
+    methods: ["get","head"],
+    url: '/admin/langganan',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+langganan.url = (options?: RouteQueryOptions) => {
+    return langganan.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+langganan.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: langganan.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+langganan.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: langganan.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+    const langgananForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: langganan.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+        langgananForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: langganan.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\LanggananController::langganan
+ * @see app/Http/Controllers/Admin/LanggananController.php:20
+ * @route '/admin/langganan'
+ */
+        langgananForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: langganan.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    langganan.form = langgananForm
+/**
 * @see \App\Http\Controllers\PromoController::promos
  * @see app/Http/Controllers/PromoController.php:20
  * @route '/admin/promos'
@@ -959,6 +1037,7 @@ stok: Object.assign(stok, stok67e4e1),
 produksi: Object.assign(produksi, produksi22b192),
 onboarding: Object.assign(onboarding, onboardingC947a0),
 laporan: Object.assign(laporan, laporan),
+langganan: Object.assign(langganan, langganan),
 promos: Object.assign(promos, promosFc23d1),
 pesanan: Object.assign(pesanan, pesananC38bc3),
 }

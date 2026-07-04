@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    // Gateway pembayaran langganan (SEAM — belum dipakai). Integrasi live
+    // (Snap + webhook konfirmasi) adalah follow-up; saat itu MidtransGateway
+    // memanggil LanggananService::catatPembayaran(metode: 'midtrans'). Kosong
+    // default supaya tak ada rahasia di repo.
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+    ],
+
 ];

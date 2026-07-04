@@ -5,6 +5,7 @@ import {
     CircleDollarSign,
     ClipboardList,
     ContactRound,
+    CreditCard,
     Factory,
     History,
     LayoutGrid,
@@ -55,6 +56,11 @@ export function useNavMenu() {
                 b && b.stokMenipis > 0
                     ? { count: b.stokMenipis, tone: 'warn' }
                     : undefined;
+
+            // Laporan Keuangan terkunci untuk tier gratis (paywall). Item yang
+            // terkunci diarahkan ke halaman langganan + ditandai gembok.
+            const keuanganLocked =
+                page.props.langganan?.fitur?.laporan_keuangan === false;
 
             return [
                 {
@@ -136,8 +142,11 @@ export function useNavMenu() {
                         },
                         {
                             title: 'Laporan Keuangan',
-                            href: '/admin/laporan/keuangan',
+                            href: keuanganLocked
+                                ? '/admin/langganan'
+                                : '/admin/laporan/keuangan',
                             icon: Wallet,
+                            locked: keuanganLocked,
                         },
                         {
                             title: 'Analisis Pelanggan',
@@ -153,6 +162,11 @@ export function useNavMenu() {
                             title: 'Data User',
                             href: '/admin/users',
                             icon: UserCog,
+                        },
+                        {
+                            title: 'Langganan',
+                            href: '/admin/langganan',
+                            icon: CreditCard,
                         },
                     ],
                 },
