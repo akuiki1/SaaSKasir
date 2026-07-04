@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ProdukController;
 use App\Http\Controllers\Api\TransaksiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -13,5 +14,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('user', fn (Request $request) => $request->user());
 
+    Route::get('produk', [ProdukController::class, 'index']);
     Route::post('transaksi', [TransaksiController::class, 'store']);
 });
