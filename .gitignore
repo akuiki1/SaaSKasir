@@ -19,7 +19,6 @@ public/fonts-manifest.dev.json
 
 # Cache directories
 vendor/
-composer.lock
 
 # Environment variables
 .env
