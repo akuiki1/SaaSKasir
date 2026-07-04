@@ -31,10 +31,14 @@ test('kasir can view the transaksi page with products and active promos', functi
     );
 });
 
-test('admin cannot access kasir transaksi routes', function () {
+test('admin can access kasir transaksi routes too (solo-operator toko)', function () {
     $admin = User::factory()->create(['role' => 'admin']);
+    Produk::factory()->count(2)->create();
 
-    $this->actingAs($admin)->get(route('kasir.transaksi'))->assertForbidden();
+    $response = $this->actingAs($admin)->get(route('kasir.transaksi'));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page->component('kasir/Transaksi'));
 });
 
 test('guests are redirected from kasir transaksi page', function () {

@@ -29,12 +29,12 @@ test('kasir is redirected to kasir dashboard', function () {
     $response->assertRedirect(route('kasir.dashboard'));
 });
 
-test('admin can access admin dashboard but not kasir dashboard', function () {
+test('admin can access both admin dashboard and kasir dashboard', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $this->actingAs($admin);
 
     $this->get(route('admin.dashboard'))->assertOk();
-    $this->get(route('kasir.dashboard'))->assertForbidden();
+    $this->get(route('kasir.dashboard'))->assertOk();
 });
 
 test('kasir can access kasir dashboard but not admin dashboard', function () {
