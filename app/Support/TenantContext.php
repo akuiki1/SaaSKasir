@@ -23,6 +23,10 @@ class TenantContext
 
     private bool $resolved = false;
 
+    private ?Toko $toko = null;
+
+    private bool $tokoResolved = false;
+
     public function id(): ?int
     {
         if (! $this->resolved) {
@@ -33,9 +37,38 @@ class TenantContext
         return $this->tokoId;
     }
 
+    /**
+     * Model Toko yang sedang aktif (di-cache per request/proses). Dipakai rute
+     * publik untuk mengambil branding (nama, whatsapp) toko yang benar.
+     */
+    public function toko(): ?Toko
+    {
+        if (! $this->tokoResolved) {
+            $id = $this->id();
+            $this->toko = $id ? Toko::find($id) : null;
+            $this->tokoResolved = true;
+        }
+
+        return $this->toko;
+    }
+
     public function set(?int $tokoId): void
     {
         $this->tokoId = $tokoId;
         $this->resolved = true;
+        $this->toko = null;
+        $this->tokoResolved = false;
+    }
+
+    /**
+     * Set tenant aktif sekaligus dari model Toko yang sudah di-resolve
+     * (mis. lewat slug di middleware) — menghindari query ulang di toko().
+     */
+    public function setToko(Toko $toko): void
+    {
+        $this->tokoId = $toko->id_toko;
+        $this->resolved = true;
+        $this->toko = $toko;
+        $this->tokoResolved = true;
     }
 }

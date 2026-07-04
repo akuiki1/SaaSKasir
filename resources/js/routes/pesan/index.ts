@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
 * @see \App\Http\Controllers\PesananPublikController::store
- * @see app/Http/Controllers/PesananPublikController.php:29
+ * @see app/Http/Controllers/PesananPublikController.php:27
  * @route '/pesan'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\PesananPublikController::store
- * @see app/Http/Controllers/PesananPublikController.php:29
+ * @see app/Http/Controllers/PesananPublikController.php:27
  * @route '/pesan'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\PesananPublikController::store
- * @see app/Http/Controllers/PesananPublikController.php:29
+ * @see app/Http/Controllers/PesananPublikController.php:27
  * @route '/pesan'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\PesananPublikController::store
- * @see app/Http/Controllers/PesananPublikController.php:29
+ * @see app/Http/Controllers/PesananPublikController.php:27
  * @route '/pesan'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\PesananPublikController::store
- * @see app/Http/Controllers/PesananPublikController.php:29
+ * @see app/Http/Controllers/PesananPublikController.php:27
  * @route '/pesan'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -56,7 +56,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\PesananPublikController::lacak
- * @see app/Http/Controllers/PesananPublikController.php:74
+ * @see app/Http/Controllers/PesananPublikController.php:72
  * @route '/lacak-pesanan'
  */
 export const lacak = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ lacak.definition = {
 
 /**
 * @see \App\Http\Controllers\PesananPublikController::lacak
- * @see app/Http/Controllers/PesananPublikController.php:74
+ * @see app/Http/Controllers/PesananPublikController.php:72
  * @route '/lacak-pesanan'
  */
 lacak.url = (options?: RouteQueryOptions) => {
@@ -80,7 +80,7 @@ lacak.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\PesananPublikController::lacak
- * @see app/Http/Controllers/PesananPublikController.php:74
+ * @see app/Http/Controllers/PesananPublikController.php:72
  * @route '/lacak-pesanan'
  */
 lacak.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -90,7 +90,7 @@ lacak.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\PesananPublikController::lacak
- * @see app/Http/Controllers/PesananPublikController.php:74
+ * @see app/Http/Controllers/PesananPublikController.php:72
  * @route '/lacak-pesanan'
  */
     const lacakForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -100,7 +100,7 @@ lacak.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\PesananPublikController::lacak
- * @see app/Http/Controllers/PesananPublikController.php:74
+ * @see app/Http/Controllers/PesananPublikController.php:72
  * @route '/lacak-pesanan'
  */
         lacakForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

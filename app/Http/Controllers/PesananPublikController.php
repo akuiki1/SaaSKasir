@@ -5,19 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Pesanan;
 use App\Models\PesananItem;
 use App\Services\PesananService;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PesananPublikController extends Controller
 {
-    /**
-     * Nomor WhatsApp toko (tujuan pesan konfirmasi pesanan dari pelanggan).
-     * Selaras dengan WHATSAPP_NUMBER di resources/js/pages/Welcome.vue.
-     */
-    private const WHATSAPP_TOKO = '6283114827245';
-
-    public function __construct(private readonly PesananService $service) {}
+    public function __construct(
+        private readonly PesananService $service,
+        private readonly TenantContext $tenant,
+    ) {}
 
     /**
      * Simpan pesanan online (pending) dari storefront + reserve stok.
@@ -125,23 +123,29 @@ class PesananPublikController extends Controller
         };
     }
 
-    /** Bangun tautan wa.me ke toko berisi ringkasan pesanan (pesan konfirmasi pelanggan). */
+    /**
+     * Bangun tautan wa.me ke toko berisi ringkasan pesanan (pesan konfirmasi
+     * pelanggan). Nomor & nama toko diambil dari toko aktif (ResolveTenant),
+     * BUKAN hardcode — dua toko berbeda harus mengarah ke WhatsApp masing-masing.
+     */
     private function waKonfirmasiUrl(Pesanan $pesanan): string
     {
         $pesanan->loadMissing('items');
+
+        $toko = $this->tenant->toko();
 
         $baris = $pesanan->items
             ->map(fn (PesananItem $item, int $i) => ($i + 1).'. '.$item->nama_produk
                 .' ('.$item->jumlah.'x) = Rp'.number_format($item->subtotal, 0, ',', '.'))
             ->implode("\n");
 
-        $teks = "Halo Cemilan Mba Tutut! 👋\n"
+        $teks = 'Halo '.($toko->nama ?? 'Kak')."! 👋\n"
             ."Saya sudah membuat pesanan *{$pesanan->kode}* lewat web:\n\n"
             ."{$baris}\n\n"
             .'*Total: Rp'.number_format($pesanan->total, 0, ',', '.')."*\n\n"
             ."Atas nama: {$pesanan->nama_pelanggan}\n"
             .'Mohon disiapkan ya, nanti saya ambil. Terima kasih! 🙏';
 
-        return 'https://wa.me/'.self::WHATSAPP_TOKO.'?text='.rawurlencode($teks);
+        return 'https://wa.me/'.($toko->whatsapp ?? '').'?text='.rawurlencode($teks);
     }
 }
