@@ -9,6 +9,7 @@ use App\Models\Produk;
 use App\Models\Promo;
 use App\Models\TarifJasa;
 use App\Models\Transaksi;
+use App\Services\KasirService;
 use App\Services\PesananService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -344,7 +344,7 @@ class KasirController extends Controller
             ]);
     }
 
-    public function store(Request $request, PesananService $pesananService): RedirectResponse
+    public function store(Request $request, PesananService $pesananService, KasirService $kasirService): RedirectResponse
     {
         // Kasir bisa memilih menyimpan keranjang sebagai PESANAN (pending) alih-alih
         // langsung diproses — mis. pelanggan walk-in yang belum bayar. Default 'proses'.
@@ -368,221 +368,7 @@ class KasirController extends Controller
             'items.*.fee' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $transaksi = DB::transaction(function () use ($validated): Transaksi {
-            $subtotal = 0;
-            $totalNominalJasa = 0; // titipan transfer/tarik tunai: bukan omzet, tapi dibayar tunai
-            $details = [];
-            $now = now();
-
-            $activePromos = Promo::where('aktif', true)
-                ->where('tanggal_mulai', '<=', $now)
-                ->where('tanggal_selesai', '>=', $now)
-                ->get();
-
-            // Reseller dapat potongan harga rupiah per produk.
-            $pelanggan = ! empty($validated['id_pelanggan'])
-                ? Pelanggan::find($validated['id_pelanggan'])
-                : null;
-            $isReseller = $pelanggan?->tipe === 'reseller';
-
-            foreach ($validated['items'] as $item) {
-                $produk = Produk::lockForUpdate()->findOrFail($item['id_produk']);
-                // Harga efektif: reseller dipotong per produk; jasa pakai fee (di-override di bawah).
-                $harga = $isReseller
-                    ? max(0, $produk->harga_jual - $produk->potongan_reseller)
-                    : $produk->harga_jual;
-                $nominalRef = null; // diisi hanya untuk jasa (pass-through)
-
-                if ($produk->tipe_jual === 'jasa') {
-                    // Jasa (transfer/tarik tunai): TANPA stok. Omzet = fee saja.
-                    // Nominal pokok hanya pass-through (titipan), TIDAK masuk omzet.
-                    $nominalRef = (int) ($item['nominal'] ?? 0);
-
-                    if ($nominalRef <= 0) {
-                        throw ValidationException::withMessages([
-                            'items' => "Masukkan nominal transfer/tarik untuk {$produk->nama}.",
-                        ]);
-                    }
-
-                    // Bila layanan punya tarif bertingkat, fee DIHITUNG ULANG dari tabel
-                    // berdasarkan nominal (anti salah ketik/manipulasi — fee = omzet toko).
-                    // Tanpa tarif, fee tetap diketik manual seperti sebelumnya.
-                    $tarifFee = $produk->resolveFeeJasa($nominalRef);
-
-                    if ($tarifFee !== null) {
-                        $fee = $tarifFee;
-                    } else {
-                        $fee = (int) ($item['fee'] ?? 0);
-
-                        if ($fee <= 0) {
-                            throw ValidationException::withMessages([
-                                'items' => "Masukkan biaya admin (fee) untuk {$produk->nama}.",
-                            ]);
-                        }
-                    }
-
-                    $qty = 1;
-                    $harga = $fee;
-                    $itemSubtotal = $fee;
-
-                    $subtotal += $itemSubtotal; // hanya fee yang masuk omzet
-                    $totalNominalJasa += $nominalRef; // titipan dibayar tunai oleh pelanggan
-
-                    $details[] = [
-                        'produk' => $produk,
-                        'jumlah' => $qty,
-                        'harga' => $harga,
-                        'modal' => 0, // jasa tidak punya HPP
-                        'subtotal_after_promo' => $itemSubtotal,
-                        'item_diskon' => 0, // promo tidak berlaku untuk fee jasa
-                        'nominal' => $nominalRef,
-                        'is_jasa' => true,
-                    ];
-
-                    continue;
-                }
-
-                if ($produk->tipe_jual === 'curah') {
-                    // Curah (bensin/bawang): kasir input NOMINAL rupiah → qty = nominal ÷ harga/satuan.
-                    // subtotal = nominal persis; qty (3 desimal) dipakai untuk potong stok & HPP.
-                    $nominal = (int) ($item['nominal'] ?? 0);
-
-                    if ($nominal <= 0) {
-                        throw ValidationException::withMessages([
-                            'items' => "Masukkan nominal pembelian untuk {$produk->nama}.",
-                        ]);
-                    }
-
-                    if ($harga <= 0) {
-                        throw ValidationException::withMessages([
-                            'items' => "Harga per {$produk->satuan} untuk {$produk->nama} belum diatur.",
-                        ]);
-                    }
-
-                    $qty = round($nominal / $harga, 3);
-                    $itemSubtotal = $nominal;
-                } else {
-                    $qty = (float) $item['jumlah'];
-                    $itemSubtotal = (int) round($harga * $qty);
-                }
-
-                if ($produk->stok < $qty) {
-                    throw ValidationException::withMessages([
-                        'items' => "Stok {$produk->nama} tidak mencukupi (tersedia: {$produk->stok} {$produk->satuan}).",
-                    ]);
-                }
-
-                $subtotal += $itemSubtotal;
-
-                // Cari promo spesifik produk
-                $prodPromo = $activePromos->where('id_produk', $produk->id_produk)->first();
-                $itemDiskon = 0;
-                if ($prodPromo) {
-                    if ($prodPromo->tipe === 'persen') {
-                        // Diskon persen tidak lagi dibuat dari form, tapi promo lama
-                        // tetap dihormati agar data historis konsisten.
-                        $itemDiskon = (int) ($itemSubtotal * ($prodPromo->nilai / 100));
-                    } elseif ($prodPromo->tipe === 'bundling') {
-                        // Beli X gratis Y — hanya untuk produk satuan (qty bilangan bulat).
-                        $grup = (int) $prodPromo->beli_qty + (int) $prodPromo->gratis_qty;
-
-                        if ($produk->tipe_jual === 'satuan' && $grup > 0 && $prodPromo->gratis_qty > 0) {
-                            $gratis = intdiv((int) floor($qty), $grup) * (int) $prodPromo->gratis_qty;
-                            $itemDiskon = (int) ($gratis * $harga);
-                        }
-                    } else {
-                        // nominal
-                        $itemDiskon = (int) ($prodPromo->nilai * $qty);
-                    }
-                }
-
-                $details[] = [
-                    'produk' => $produk,
-                    'jumlah' => $qty,
-                    'harga' => $harga,
-                    'modal' => $produk->harga_modal, // snapshot HPP/unit saat terjual
-                    'subtotal_after_promo' => max(0, $itemSubtotal - $itemDiskon),
-                    'item_diskon' => $itemDiskon,
-                ];
-            }
-
-            // Promo keranjang (global, id_produk null) diterapkan OTOMATIS: dari promo
-            // aktif yang syarat minimal belanjanya terpenuhi, pilih yang diskonnya
-            // paling besar untuk pelanggan. Kasir tidak perlu memilih manual.
-            $globalDiskon = 0;
-            $appliedPromoId = null;
-
-            foreach ($activePromos->whereNull('id_produk') as $globalPromo) {
-                if ($globalPromo->minimal_belanja && $subtotal < $globalPromo->minimal_belanja) {
-                    continue;
-                }
-
-                $diskon = $globalPromo->tipe === 'persen'
-                    ? (int) ($subtotal * ($globalPromo->nilai / 100))
-                    : (int) $globalPromo->nilai;
-
-                if ($diskon > $globalDiskon) {
-                    $globalDiskon = $diskon;
-                    $appliedPromoId = $globalPromo->id_promo;
-                }
-            }
-
-            $totalDiskon = $globalDiskon + collect($details)->sum('item_diskon');
-            $totalHarga = max(0, $subtotal - $totalDiskon); // omzet (produk + fee jasa), TANPA nominal titipan
-
-            // Tagihan tunai = omzet + nominal titipan jasa. Pelanggan membayar nominal
-            // transfer/tarik tunai secara tunai juga, jadi kembalian dihitung dari tagihan
-            // ini (bukan dari omzet). Nominal tetap BUKAN omzet — hanya lapisan kas.
-            $totalTagihan = $totalHarga + $totalNominalJasa;
-
-            if ($validated['bayar'] < $totalTagihan) {
-                throw ValidationException::withMessages([
-                    'bayar' => 'Jumlah bayar kurang dari total tagihan.',
-                ]);
-            }
-
-            $transaksi = Transaksi::create([
-                'id_user' => Auth::id(),
-                'id_pelanggan' => $pelanggan?->id_pelanggan,
-                'id_promo' => $appliedPromoId,
-                'total_harga' => $totalHarga,
-                'diskon' => $totalDiskon,
-                'metode_pembayaran' => $validated['metode_pembayaran'],
-                'bayar' => $validated['bayar'],
-                'kembalian' => $validated['bayar'] - $totalTagihan,
-            ]);
-
-            foreach ($details as $detail) {
-                DetailTransaksi::create([
-                    'id_transaksi' => $transaksi->id_transaksi,
-                    'id_produk' => $detail['produk']->id_produk,
-                    'jumlah' => $detail['jumlah'],
-                    'harga' => $detail['harga'],
-                    'modal' => $detail['modal'],
-                    'subtotal' => $detail['subtotal_after_promo'],
-                    'nominal' => $detail['nominal'] ?? null,
-                ]);
-
-                // Jasa tidak menyentuh stok (tanpa kartu stok).
-                if (! empty($detail['is_jasa'])) {
-                    continue;
-                }
-
-                // Kurangi stok + catat ke kartu stok (produk masih terkunci dari loop validasi).
-                $detail['produk']->terapkanMutasiStok(
-                    -(float) $detail['jumlah'],
-                    'jual',
-                    [
-                        'keterangan' => 'Penjualan TRX-'.$transaksi->id_transaksi,
-                        'ref_tipe' => 'Transaksi',
-                        'id_referensi' => $transaksi->id_transaksi,
-                        'id_user' => Auth::id(),
-                    ]
-                );
-            }
-
-            return $transaksi;
-        });
+        $transaksi = $kasirService->jual($validated, Auth::id());
 
         // Kirim data struk transaksi yang baru ke halaman kasir agar muncul modal
         // "Transaksi Selesai" (opsi cetak struk / selesai). Kasir tetap di halaman
