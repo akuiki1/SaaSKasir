@@ -424,7 +424,7 @@ test('admin can delete a transaction and restore stock', function () {
     expect($produk->fresh()->stok)->toBe(5.0);
 });
 
-test('admin can delete produk used in transaction and preserve transaction history', function () {
+test('admin can archive produk used in transaction and preserve transaction history', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $produk = Produk::factory()->create();
     $transaksi = Transaksi::factory()->create();
@@ -442,6 +442,8 @@ test('admin can delete produk used in transaction and preserve transaction histo
 
     $response->assertRedirect(route('admin.products'));
     $response->assertSessionHas('success');
-    $this->assertDatabaseMissing('produks', ['id_produk' => $produk->id_produk]);
-    $this->assertDatabaseHas('detail_transaksis', ['id_transaksi' => $transaksi->id_transaksi, 'id_produk' => null]);
+    // Diarsipkan (soft delete), BUKAN dihapus permanen — FK detail_transaksis.id_produk
+    // pakai restrictOnDelete, jadi riwayat tetap menunjuk ke produk aslinya.
+    $this->assertSoftDeleted('produks', ['id_produk' => $produk->id_produk]);
+    $this->assertDatabaseHas('detail_transaksis', ['id_transaksi' => $transaksi->id_transaksi, 'id_produk' => $produk->id_produk]);
 });
