@@ -324,7 +324,7 @@ pelanggan.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     pelanggan.form = pelangganForm
 /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
 export const products = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -339,7 +339,7 @@ products.definition = {
 
 /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
 products.url = (options?: RouteQueryOptions) => {
@@ -348,7 +348,7 @@ products.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
 products.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -357,7 +357,7 @@ products.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
 products.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -367,7 +367,7 @@ products.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
     const productsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -377,7 +377,7 @@ products.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
         productsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -386,7 +386,7 @@ products.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\ProdukController::products
- * @see app/Http/Controllers/ProdukController.php:23
+ * @see app/Http/Controllers/ProdukController.php:22
  * @route '/admin/products'
  */
         productsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -402,7 +402,7 @@ products.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     products.form = productsForm
 /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
 export const transactions = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -417,7 +417,7 @@ transactions.definition = {
 
 /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
 transactions.url = (options?: RouteQueryOptions) => {
@@ -426,7 +426,7 @@ transactions.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
 transactions.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -435,7 +435,7 @@ transactions.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
 transactions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -445,7 +445,7 @@ transactions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
     const transactionsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -455,7 +455,7 @@ transactions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
         transactionsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -464,7 +464,7 @@ transactions.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\TransaksiController::transactions
- * @see app/Http/Controllers/TransaksiController.php:26
+ * @see app/Http/Controllers/TransaksiController.php:25
  * @route '/admin/transactions'
  */
         transactionsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

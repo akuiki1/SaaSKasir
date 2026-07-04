@@ -5,11 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ResolvesPerPage;
 use App\Models\Kategori;
 use App\Models\Produk;
-use App\Models\Promo;
 use App\Models\TarifJasa;
+use App\Services\ProdukService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,7 +19,7 @@ class ProdukController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): Response
+    public function index(Request $request, ProdukService $service): Response
     {
         $search = trim((string) $request->query('search', ''));
         $kategori = $request->query('kategori', '');
@@ -50,7 +49,7 @@ class ProdukController extends Controller
             ->orderBy($sortColumn, $sortDir)
             ->paginate($this->resolvePerPage($request))
             ->withQueryString()
-            ->through(function (Produk $produk) use ($view) {
+            ->through(function (Produk $produk) use ($view, $service) {
                 return [
                     'id_produk' => $produk->id_produk,
                     'nama' => $produk->nama,
@@ -71,7 +70,7 @@ class ProdukController extends Controller
                     'archived_at' => $produk->deleted_at?->translatedFormat('d M Y'),
                     // Hanya produk arsip TANPA riwayat (transaksi/produksi/pesanan) yang
                     // boleh dihapus permanen. Untuk tampilan aktif tak relevan.
-                    'bisa_hapus' => $view === 'arsip' ? ! $this->produkPunyaRiwayat($produk) : false,
+                    'bisa_hapus' => $view === 'arsip' ? ! $service->punyaRiwayat($produk) : false,
                     // Tarif fee bertingkat untuk produk jasa (kosong untuk produk lain).
                     'tarifs' => $produk->tarifJasas
                         ->map(fn (TarifJasa $tarif) => [
@@ -134,7 +133,7 @@ class ProdukController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ProdukService $service): RedirectResponse
     {
         $validated = $request->validate([
             'id_kategori' => ['required', 'exists:kategoris,id_kategori'],
@@ -157,49 +156,7 @@ class ProdukController extends Controller
             'tarifs.*.fee' => ['required_with:tarifs', 'integer', 'min:0'],
         ]);
 
-        $validated['jenis'] = $validated['jenis'] ?? 'beli';
-        $validated['tipe_jual'] = $validated['tipe_jual'] ?? 'satuan';
-        $validated['satuan'] = $validated['satuan'] ?? 'pcs';
-
-        // Produk jasa (tarik tunai/transfer) tidak punya barang fisik: tanpa stok,
-        // tanpa potongan reseller, dan tanpa "asal produk" — omzet murni dari fee.
-        // harga_jual tidak dipakai untuk jasa (fee diambil dari tarif bertingkat atau
-        // diketik kasir tiap transaksi), jadi dipaksa 0 agar tidak menyesatkan.
-        if ($validated['tipe_jual'] === 'jasa') {
-            $validated['jenis'] = 'beli';
-            $validated['stok'] = 0;
-            $validated['potongan_reseller'] = 0;
-            $validated['harga_jual'] = 0;
-        } else {
-            $validated['potongan_reseller'] = (int) ($validated['potongan_reseller'] ?? 0);
-        }
-
-        if ($request->hasFile('foto_upload')) {
-            $validated['foto'] = $request->file('foto_upload')->store('produk', 'public');
-        } else {
-            $validated['foto'] = blank($validated['foto'] ?? null) ? null : $validated['foto'];
-        }
-
-        // Modal barang: produk jasa tidak punya modal (omzet = fee saja); produk
-        // 'produksi' dikelola otomatis oleh modul Produksi (batch costing); 'beli'
-        // diisi manual.
-        $validated['harga_modal'] = $validated['tipe_jual'] === 'jasa' || $validated['jenis'] === 'produksi'
-            ? 0
-            : (int) ($validated['harga_modal'] ?? 0);
-
-        $produk = Produk::create($validated);
-
-        // Tarif bertingkat hanya relevan untuk produk jasa.
-        if ($produk->tipe_jual === 'jasa') {
-            $this->syncTarifJasa($produk, $validated['tarifs'] ?? []);
-        }
-
-        // Catat saldo awal ke kartu stok bila produk dibuat dengan stok > 0.
-        if ((float) $produk->stok != 0.0) {
-            $produk->catatMutasiStok(0, (float) $produk->stok, (float) $produk->stok, 'awal', [
-                'keterangan' => 'Stok awal saat produk dibuat',
-            ]);
-        }
+        $produk = $service->buat($validated, $request->file('foto_upload'));
 
         // Produk "buatan sendiri" dibuat tanpa stok & modal (keduanya berasal dari
         // catatan Produksi). Beritahu frontend agar menawarkan lanjut ke menu Produksi.
@@ -217,7 +174,7 @@ class ProdukController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Produk $produk): RedirectResponse
+    public function update(Request $request, Produk $produk, ProdukService $service): RedirectResponse
     {
         $validated = $request->validate([
             'id_kategori' => ['required', 'exists:kategoris,id_kategori'],
@@ -240,56 +197,7 @@ class ProdukController extends Controller
             'tarifs.*.fee' => ['required_with:tarifs', 'integer', 'min:0'],
         ]);
 
-        $validated['jenis'] = $validated['jenis'] ?? $produk->jenis;
-        $validated['tipe_jual'] = $validated['tipe_jual'] ?? $produk->tipe_jual;
-        $validated['satuan'] = $validated['satuan'] ?? $produk->satuan;
-
-        // Produk jasa tidak punya barang fisik: tanpa stok, potongan reseller, modal,
-        // atau harga_jual (fee diambil dari tarif bertingkat / diketik kasir).
-        if ($validated['tipe_jual'] === 'jasa') {
-            $validated['jenis'] = 'beli';
-            $validated['stok'] = 0;
-            $validated['potongan_reseller'] = 0;
-            $validated['harga_jual'] = 0;
-        } else {
-            $validated['potongan_reseller'] = (int) ($validated['potongan_reseller'] ?? 0);
-        }
-
-        $stokLama = (float) $produk->stok;
-
-        if ($request->hasFile('foto_upload')) {
-            $validated['foto'] = $request->file('foto_upload')->store('produk', 'public');
-        } else {
-            $validated['foto'] = blank($validated['foto'] ?? null) ? null : $validated['foto'];
-        }
-
-        if ($validated['tipe_jual'] === 'jasa') {
-            // Jasa tidak punya modal barang (omzet = fee saja).
-            $validated['harga_modal'] = 0;
-        } elseif ($validated['jenis'] === 'produksi') {
-            // Modal dikelola oleh modul Produksi — jangan timpa dari form.
-            unset($validated['harga_modal']);
-        } else {
-            $validated['harga_modal'] = (int) ($validated['harga_modal'] ?? 0);
-        }
-
-        $produk->update($validated);
-
-        // Sinkronkan tarif bertingkat: produk jasa ditulis ulang dari form, produk
-        // non-jasa dibersihkan (mis. baru dipindah dari jasa ke satuan/curah).
-        if ($produk->tipe_jual === 'jasa') {
-            $this->syncTarifJasa($produk, $validated['tarifs'] ?? []);
-        } else {
-            $produk->tarifJasas()->delete();
-        }
-
-        // Catat penyesuaian stok manual ke kartu stok bila stok berubah.
-        $stokBaru = (float) $produk->stok;
-        if ($stokBaru !== $stokLama) {
-            $produk->catatMutasiStok($stokLama, $stokBaru, $stokBaru - $stokLama, 'penyesuaian', [
-                'keterangan' => 'Penyesuaian stok manual dari halaman produk',
-            ]);
-        }
+        $service->perbarui($produk, $validated, $request->file('foto_upload'));
 
         return redirect()->route('admin.products')->with('success', 'Produk berhasil diperbarui.');
     }
@@ -298,52 +206,15 @@ class ProdukController extends Controller
      * Buat barcode + SKU otomatis untuk semua produk yang belum punya barcode.
      * Produk jasa dilewati karena tidak ada barang fisik untuk discan.
      */
-    public function generateAllBarcodes(): RedirectResponse
+    public function generateAllBarcodes(ProdukService $service): RedirectResponse
     {
-        $produks = Produk::where('tipe_jual', '!=', 'jasa')
-            ->where(fn ($q) => $q->whereNull('barcode')->orWhere('barcode', ''))
-            ->get();
-
-        $dibuat = 0;
-        foreach ($produks as $produk) {
-            $barcode = Produk::generateUniqueBarcode();
-            // SKU lama dipertahankan; kalau kosong baru diturunkan dari barcode.
-            $sku = filled($produk->sku) ? $produk->sku : Produk::generateUniqueSku($barcode);
-
-            $produk->update([
-                'barcode' => $barcode,
-                'sku' => $sku,
-            ]);
-
-            $dibuat++;
-        }
+        $dibuat = $service->generateAllBarcodes();
 
         $pesan = $dibuat > 0
             ? "Barcode & SKU otomatis dibuat untuk {$dibuat} produk."
             : 'Semua produk (non-jasa) sudah memiliki barcode. Tidak ada yang perlu dibuat.';
 
         return redirect()->route('admin.products')->with('success', $pesan);
-    }
-
-    /**
-     * Tulis ulang tarif fee bertingkat sebuah produk jasa dari input form.
-     * Tarif lama dihapus lalu dibuat ulang (set kecil — paling sederhana &
-     * konsisten), diurutkan naik berdasarkan batas bawah agar resolusi rapi.
-     *
-     * @param  array<int, array{min_nominal?: int|string, fee?: int|string}>  $tarifs
-     */
-    private function syncTarifJasa(Produk $produk, array $tarifs): void
-    {
-        $produk->tarifJasas()->delete();
-
-        collect($tarifs)
-            ->map(fn ($tarif) => [
-                'min_nominal' => max(0, (int) ($tarif['min_nominal'] ?? 0)),
-                'fee' => max(0, (int) ($tarif['fee'] ?? 0)),
-            ])
-            ->sortBy('min_nominal')
-            ->values()
-            ->each(fn ($tarif) => $produk->tarifJasas()->create($tarif));
     }
 
     /**
@@ -371,27 +242,15 @@ class ProdukController extends Controller
     }
 
     /**
-     * Apakah produk sudah pernah dipakai pada riwayat bisnis (transaksi/produksi/
-     * pesanan)? Ketiganya FK restrictOnDelete — produk seperti ini wajib tetap
-     * diarsipkan agar laporan & riwayat tidak rusak, tidak boleh dihapus permanen.
-     */
-    private function produkPunyaRiwayat(Produk $produk): bool
-    {
-        return $produk->detailTransaksis()->exists()
-            || $produk->produksis()->exists()
-            || DB::table('pesanan_items')->where('id_produk', $produk->id_produk)->exists();
-    }
-
-    /**
      * Hapus PERMANEN produk yang diarsipkan. Hanya untuk produk salah input /
      * duplikat yang BELUM pernah dipakai — produk dengan riwayat tetap diarsipkan
      * (dijaga juga oleh FK restrictOnDelete di level DB).
      */
-    public function hapusPermanen(int $produk): RedirectResponse
+    public function hapusPermanen(int $produk, ProdukService $service): RedirectResponse
     {
         $produk = Produk::onlyTrashed()->findOrFail($produk);
 
-        if ($this->produkPunyaRiwayat($produk)) {
+        if ($service->punyaRiwayat($produk)) {
             Inertia::flash('toast', [
                 'type' => 'error',
                 'message' => 'Produk ini sudah pernah dipakai di transaksi/produksi/pesanan, jadi tidak bisa dihapus permanen. Biarkan tetap diarsipkan agar laporan tidak rusak.',
@@ -400,15 +259,7 @@ class ProdukController extends Controller
             return back();
         }
 
-        DB::transaction(function () use ($produk): void {
-            // Bersihkan jejak yang TIDAK memblokir agar tak menyisakan data yatim:
-            // kartu stok (saldo awal) & promo khusus produk ini. Tarif jasa ikut
-            // terhapus otomatis (FK cascade).
-            $produk->stokMutasis()->delete();
-            Promo::where('id_produk', $produk->id_produk)->delete();
-
-            $produk->forceDelete();
-        });
+        $service->hapusPermanen($produk);
 
         return redirect()->route('admin.products', ['view' => 'arsip'])
             ->with('success', 'Produk berhasil dihapus permanen.');

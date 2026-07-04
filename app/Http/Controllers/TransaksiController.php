@@ -7,12 +7,11 @@ use App\Models\DetailTransaksi;
 use App\Models\Produk;
 use App\Models\Transaksi;
 use App\Models\User;
+use App\Services\TransaksiService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -97,7 +96,7 @@ class TransaksiController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TransaksiService $service): RedirectResponse
     {
         $validated = $request->validate([
             'id_user' => ['required', 'exists:users,id'],
@@ -109,9 +108,7 @@ class TransaksiController extends Controller
             'items.*.jumlah' => ['required', 'numeric', 'gt:0'],
         ]);
 
-        DB::transaction(function () use ($validated): void {
-            $this->createTransaksiWithDetails($validated);
-        });
+        $service->buat($validated);
 
         return redirect()->route('admin.transactions')->with('success', 'Transaksi berhasil ditambahkan.');
     }
@@ -119,7 +116,7 @@ class TransaksiController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Transaksi $transaksi): RedirectResponse
+    public function update(Request $request, Transaksi $transaksi, TransaksiService $service): RedirectResponse
     {
         $validated = $request->validate([
             'id_user' => ['required', 'exists:users,id'],
@@ -131,11 +128,7 @@ class TransaksiController extends Controller
             'items.*.jumlah' => ['required', 'numeric', 'gt:0'],
         ]);
 
-        DB::transaction(function () use ($validated, $transaksi): void {
-            $this->restoreStockFromTransaksi($transaksi);
-            $transaksi->detailTransaksis()->delete();
-            $this->createTransaksiWithDetails($validated, $transaksi);
-        });
+        $service->perbarui($transaksi, $validated);
 
         return redirect()->route('admin.transactions')->with('success', 'Transaksi berhasil diperbarui.');
     }
@@ -143,113 +136,11 @@ class TransaksiController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Transaksi $transaksi): RedirectResponse
+    public function destroy(Transaksi $transaksi, TransaksiService $service): RedirectResponse
     {
-        DB::transaction(function () use ($transaksi): void {
-            $this->restoreStockFromTransaksi($transaksi);
-            $transaksi->delete();
-        });
+        $service->hapus($transaksi);
 
         return redirect()->route('admin.transactions')->with('success', 'Transaksi berhasil dihapus.');
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function createTransaksiWithDetails(array $validated, ?Transaksi $transaksi = null): void
-    {
-        $totalHarga = 0;
-        $details = [];
-
-        foreach ($validated['items'] as $item) {
-            $produk = Produk::lockForUpdate()->findOrFail($item['id_produk']);
-
-            if ($produk->stok < $item['jumlah']) {
-                throw ValidationException::withMessages([
-                    'items' => "Stok {$produk->nama} tidak mencukupi (tersedia: {$produk->stok}).",
-                ]);
-            }
-
-            $harga = $produk->harga_jual;
-            $subtotal = $harga * $item['jumlah'];
-            $totalHarga += $subtotal;
-
-            $details[] = [
-                'produk' => $produk,
-                'jumlah' => $item['jumlah'],
-                'harga' => $harga,
-                'modal' => $produk->harga_modal, // snapshot HPP/unit saat terjual
-                'subtotal' => $subtotal,
-            ];
-        }
-
-        if ($validated['bayar'] < $totalHarga) {
-            throw ValidationException::withMessages([
-                'bayar' => 'Jumlah bayar kurang dari total harga.',
-            ]);
-        }
-
-        $transaksiData = [
-            'id_user' => $validated['id_user'],
-            'total_harga' => $totalHarga,
-            'metode_pembayaran' => $validated['metode_pembayaran'],
-            'bayar' => $validated['bayar'],
-            'kembalian' => $validated['bayar'] - $totalHarga,
-        ];
-
-        if ($transaksi) {
-            $transaksi->update($transaksiData);
-        } else {
-            $transaksi = Transaksi::create($transaksiData);
-        }
-
-        foreach ($details as $detail) {
-            DetailTransaksi::create([
-                'id_transaksi' => $transaksi->id_transaksi,
-                'id_produk' => $detail['produk']->id_produk,
-                'jumlah' => $detail['jumlah'],
-                'harga' => $detail['harga'],
-                'modal' => $detail['modal'],
-                'subtotal' => $detail['subtotal'],
-            ]);
-
-            // Kurangi stok + catat ke kartu stok (produk masih terkunci dari loop validasi).
-            $detail['produk']->terapkanMutasiStok(
-                -(float) $detail['jumlah'],
-                'jual',
-                [
-                    'keterangan' => 'Penjualan (admin) TRX-'.$transaksi->id_transaksi,
-                    'ref_tipe' => 'Transaksi',
-                    'id_referensi' => $transaksi->id_transaksi,
-                ]
-            );
-        }
-    }
-
-    private function restoreStockFromTransaksi(Transaksi $transaksi): void
-    {
-        $transaksi->load('detailTransaksis');
-
-        foreach ($transaksi->detailTransaksis as $detail) {
-            if ($detail->id_produk === null) {
-                continue; // produk sudah dihapus — lewati pengembalian stok.
-            }
-
-            $produk = Produk::lockForUpdate()->find($detail->id_produk);
-
-            if ($produk) {
-                // Kembalikan stok + catat ke kartu stok (edit/hapus transaksi).
-                $produk->terapkanMutasiStok(
-                    (float) $detail->jumlah,
-                    'retur',
-                    [
-                        'keterangan' => 'Pengembalian stok dari edit/hapus TRX-'.$transaksi->id_transaksi,
-                        'ref_tipe' => 'Transaksi',
-                        'id_referensi' => $transaksi->id_transaksi,
-                    ]
-                );
-            }
-        }
     }
 
     /**
