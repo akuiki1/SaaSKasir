@@ -7,6 +7,7 @@ use App\Models\Pelanggan;
 use App\Models\Produk;
 use App\Models\Promo;
 use App\Models\Transaksi;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -40,6 +41,32 @@ class KasirService
             }
         }
 
+        try {
+            return $this->prosesJual($validated, $userId);
+        } catch (UniqueConstraintViolationException $e) {
+            // Race: dua flush paralel (mis. dua tab) dengan client_uid sama lolos
+            // pengecekan di atas nyaris bersamaan; unique index DB menangkap yang
+            // kedua. Kembalikan transaksi yang sudah tercatat alih-alih 500 —
+            // idempotensi tetap terjaga (stok yang gagal itu sudah ter-rollback).
+            if (! empty($validated['client_uid'])) {
+                $existing = Transaksi::where('client_uid', $validated['client_uid'])->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param  array{metode_pembayaran: string, bayar: int, id_pelanggan?: int|string|null, client_uid?: string|null, items: array<int, array{id_produk: int|string, jumlah: int|float, nominal?: int|null, fee?: int|null}>}  $validated
+     *
+     * @throws ValidationException
+     */
+    private function prosesJual(array $validated, int $userId): Transaksi
+    {
         return DB::transaction(function () use ($validated, $userId): Transaksi {
             $now = now();
 

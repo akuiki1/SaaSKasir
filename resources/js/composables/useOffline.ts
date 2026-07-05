@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/vue3';
 import { onMounted, readonly, ref } from 'vue';
 import { countByStatus } from '@/lib/offlineDb';
 import { syncPending  } from '@/lib/syncEngine';
@@ -18,9 +19,14 @@ const authExpired = ref(false);
 let listenersBound = false;
 let lastResult: SyncResult | null = null;
 
+// Id user yang sedang login — antrean di-scope ke pemiliknya agar penjualan
+// luring milik kasir A tidak ikut ter-sync (dan salah atribusi) saat kasir B
+// login di device yang sama. Diisi saat useOffline() dipanggil di setup komponen.
+let currentOwnerId: number | null = null;
+
 async function refreshCounts(): Promise<void> {
-    pendingCount.value = await countByStatus('pending');
-    conflictCount.value = await countByStatus('conflict');
+    pendingCount.value = await countByStatus('pending', currentOwnerId);
+    conflictCount.value = await countByStatus('conflict', currentOwnerId);
 }
 
 /** Jalankan flush antrean (aman dipanggil berkali-kali; mutex di syncEngine). */
@@ -32,7 +38,7 @@ async function runSync(): Promise<SyncResult | null> {
     syncing.value = true;
 
     try {
-        lastResult = await syncPending();
+        lastResult = await syncPending(currentOwnerId);
         authExpired.value = lastResult.authExpired;
 
         return lastResult;
@@ -52,6 +58,14 @@ function handleOffline(): void {
 }
 
 export function useOffline() {
+    // Tangkap id user aktif dari shared props Inertia (auth.user) untuk men-scope
+    // antrean ke pemiliknya. usePage() aman dipanggil di sini karena useOffline
+    // hanya dipakai di setup komponen.
+    const page = usePage();
+    const authUser = (page.props.auth as { user?: { id?: number } } | undefined)
+        ?.user;
+    currentOwnerId = typeof authUser?.id === 'number' ? authUser.id : null;
+
     onMounted(() => {
         if (typeof window === 'undefined') {
             return;
@@ -77,6 +91,8 @@ export function useOffline() {
         conflictCount: readonly(conflictCount),
         syncing: readonly(syncing),
         authExpired: readonly(authExpired),
+        /** Id user aktif — dipakai untuk menandai record antrean saat enqueue. */
+        ownerId: () => currentOwnerId,
         /** Flush manual (tombol "Sinkron sekarang"). */
         sync: runSync,
         /** Muat ulang hitungan dari IndexedDB (mis. setelah enqueue baru). */

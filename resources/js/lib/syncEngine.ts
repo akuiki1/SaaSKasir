@@ -1,8 +1,8 @@
 import {
+    bumpAttempts,
     markConflict,
     markSynced,
-    pendingSales
-    
+    pendingSales,
 } from '@/lib/offlineDb';
 import type {QueuedSale} from '@/lib/offlineDb';
 
@@ -20,6 +20,9 @@ import type {QueuedSale} from '@/lib/offlineDb';
 
 const SYNC_URL = '/kasir/transaksi/sync';
 
+/** Batas percobaan sync untuk error transien sebelum ditandai konflik (poison queue). */
+const MAX_SYNC_ATTEMPTS = 5;
+
 export interface SyncResult {
     synced: number;
     conflict: number;
@@ -31,19 +34,19 @@ export interface SyncResult {
 let inFlight: Promise<SyncResult> | null = null;
 
 /** Mutex: hanya satu flush berjalan pada satu waktu. */
-export function syncPending(): Promise<SyncResult> {
+export function syncPending(ownerId: number | null = null): Promise<SyncResult> {
     if (inFlight) {
         return inFlight;
     }
 
-    inFlight = doSync().finally(() => {
+    inFlight = doSync(ownerId).finally(() => {
         inFlight = null;
     });
 
     return inFlight;
 }
 
-async function doSync(): Promise<SyncResult> {
+async function doSync(ownerId: number | null): Promise<SyncResult> {
     const result: SyncResult = {
         synced: 0,
         conflict: 0,
@@ -55,7 +58,7 @@ async function doSync(): Promise<SyncResult> {
         return result;
     }
 
-    const queue = await pendingSales();
+    const queue = await pendingSales(ownerId);
 
     for (const sale of queue) {
         let res: Response;
@@ -69,11 +72,21 @@ async function doSync(): Promise<SyncResult> {
         }
 
         if (res.ok) {
-            // 201 (baru) atau 200 (idempoten, sudah tercatat) → sama-sama sukses.
+            // 201 (baru) atau 200 (idempoten, sudah tercatat) → sukses HANYA bila
+            // body benar dari server kita (client_uid cocok). Captive portal /
+            // proxy transparan bisa membalas 200 berisi HTML login; menghapus
+            // antrean atas dasar itu = transaksi HILANG. Jangan ambil risiko:
+            // hentikan & biarkan pending sampai koneksi benar-benar tembus.
             const body = await res.json().catch(() => null);
-            await markSynced(sale.client_uid, body?.id_transaksi ?? null);
-            result.synced++;
-            continue;
+
+            if (body?.client_uid === sale.client_uid) {
+                await markSynced(sale.client_uid, body.id_transaksi ?? null);
+                result.synced++;
+                continue;
+            }
+
+            result.failed++;
+            break;
         }
 
         if (res.status === 401 || res.status === 419) {
@@ -83,8 +96,9 @@ async function doSync(): Promise<SyncResult> {
             break;
         }
 
-        if (res.status === 422 || res.status === 409) {
-            // Ditolak validasi (mis. stok berubah sejak offline). Tandai konflik.
+        if (res.status >= 400 && res.status < 500) {
+            // 4xx non-auth = ditolak permanen (stok berubah, produk terhapus,
+            // lintas-toko 404, validasi). Retry tak menolong → tandai konflik.
             const body = await res.json().catch(() => null);
             const message =
                 body?.message ||
@@ -94,7 +108,19 @@ async function doSync(): Promise<SyncResult> {
             continue;
         }
 
-        // 5xx / lainnya → biarkan pending untuk dicoba lagi nanti.
+        // 5xx / error transien → biarkan pending, tapi cap retry agar tidak jadi
+        // poison queue (server rusak permanen). Lewat batas → tandai konflik.
+        const attempts = await bumpAttempts(sale.client_uid);
+
+        if (attempts >= MAX_SYNC_ATTEMPTS) {
+            await markConflict(
+                sale.client_uid,
+                'Gagal disinkron berkali-kali (server bermasalah). Tinjau manual.',
+            );
+            result.conflict++;
+            continue;
+        }
+
         result.failed++;
     }
 

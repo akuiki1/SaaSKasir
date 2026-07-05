@@ -42,6 +42,13 @@ export interface QueuedSale {
     error: string | null; // pesan server saat status 'conflict'
     createdAt: number;
     id_transaksi: number | null; // diisi setelah tersinkron
+    // Pemilik antrean (id user yang membuat penjualan saat offline). Mencegah
+    // sync lintas-akun saat 1 device dipakai bergantian: hanya penjualan milik
+    // user yang sedang login yang di-flush. Null = record lama sebelum kolom ini.
+    id_user: number | null;
+    // Penghitung percobaan sync yang gagal karena error transien (5xx/jaringan
+    // tak terduga). Dipakai untuk cap retry agar tidak jadi poison queue.
+    attempts: number;
 }
 
 const DB_NAME = 'sikasir-offline';
@@ -77,6 +84,7 @@ function getDb(): Promise<IDBPDatabase> | null {
 export async function enqueueSale(
     payload: SalePayload,
     struk: StrukData,
+    ownerId: number | null = null,
 ): Promise<void> {
     const db = getDb();
 
@@ -92,13 +100,30 @@ export async function enqueueSale(
         error: null,
         createdAt: Date.now(),
         id_transaksi: null,
+        id_user: ownerId,
+        attempts: 0,
     };
 
     await (await db).put(STORE_QUEUE, record);
 }
 
-/** Semua penjualan berstatus 'pending', urut FIFO (createdAt naik). */
-export async function pendingSales(): Promise<QueuedSale[]> {
+/**
+ * Filter kepemilikan: bila ownerId diketahui, hanya record milik user itu
+ * (plus record lama tanpa id_user, untuk kompatibilitas upgrade). Bila ownerId
+ * null (tak bisa ditentukan), jangan saring — degradasi aman.
+ */
+function ownedBy(sale: QueuedSale, ownerId: number | null): boolean {
+    if (ownerId === null) {
+        return true;
+    }
+
+    return sale.id_user === ownerId || sale.id_user == null;
+}
+
+/** Penjualan 'pending' milik user aktif, urut FIFO (createdAt naik). */
+export async function pendingSales(
+    ownerId: number | null = null,
+): Promise<QueuedSale[]> {
     const db = getDb();
 
     if (!db) {
@@ -110,11 +135,15 @@ export async function pendingSales(): Promise<QueuedSale[]> {
         'createdAt',
     )) as QueuedSale[];
 
-    return all.filter((sale) => sale.status === 'pending');
+    return all.filter(
+        (sale) => sale.status === 'pending' && ownedBy(sale, ownerId),
+    );
 }
 
-/** Penjualan yang gagal validasi server (status 'conflict') untuk ditinjau kasir. */
-export async function conflictSales(): Promise<QueuedSale[]> {
+/** Penjualan konflik milik user aktif (gagal validasi server) untuk ditinjau. */
+export async function conflictSales(
+    ownerId: number | null = null,
+): Promise<QueuedSale[]> {
     const db = getDb();
 
     if (!db) {
@@ -126,17 +155,30 @@ export async function conflictSales(): Promise<QueuedSale[]> {
         'createdAt',
     )) as QueuedSale[];
 
-    return all.filter((sale) => sale.status === 'conflict');
+    return all.filter(
+        (sale) => sale.status === 'conflict' && ownedBy(sale, ownerId),
+    );
 }
 
-export async function countByStatus(status: QueueStatus): Promise<number> {
+export async function countByStatus(
+    status: QueueStatus,
+    ownerId: number | null = null,
+): Promise<number> {
     const db = getDb();
 
     if (!db) {
         return 0;
     }
 
-    return (await db).countFromIndex(STORE_QUEUE, 'status', status);
+    // Perlu filter kepemilikan → muat lalu hitung di JS (antrean satu shift kecil),
+    // bukan countFromIndex yang tak bisa memfilter id_user.
+    const all = (await (await db).getAllFromIndex(
+        STORE_QUEUE,
+        'status',
+        status,
+    )) as QueuedSale[];
+
+    return all.filter((sale) => ownedBy(sale, ownerId)).length;
 }
 
 /** Tersinkron sukses → buang dari antrean (server sudah jadi otoritas). */
@@ -178,6 +220,32 @@ export async function markConflict(
     record.status = 'conflict';
     record.error = error;
     await (await db).put(STORE_QUEUE, record);
+}
+
+/**
+ * Naikkan penghitung percobaan gagal (error transien 5xx/jaringan) & kembalikan
+ * nilai terbaru. syncEngine memakainya untuk cap retry supaya penjualan yang
+ * gagal permanen tak diulang tanpa henti (poison queue).
+ */
+export async function bumpAttempts(clientUid: string): Promise<number> {
+    const db = getDb();
+
+    if (!db) {
+        return 0;
+    }
+
+    const record = (await (await db).get(STORE_QUEUE, clientUid)) as
+        | QueuedSale
+        | undefined;
+
+    if (!record) {
+        return 0;
+    }
+
+    record.attempts = (record.attempts ?? 0) + 1;
+    await (await db).put(STORE_QUEUE, record);
+
+    return record.attempts;
 }
 
 /** Hapus penjualan konflik yang sudah ditinjau/di-void kasir. */

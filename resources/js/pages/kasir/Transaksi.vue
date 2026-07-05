@@ -1033,6 +1033,7 @@ const {
     pendingCount,
     conflictCount,
     syncing,
+    ownerId: offlineOwnerId,
     sync: syncOffline,
     refresh: refreshOffline,
 } = useOffline();
@@ -1153,10 +1154,23 @@ async function submitOffline(): Promise<void> {
         return;
     }
 
+    // Offline tidak bisa memvalidasi ke server, jadi cek bayar ≥ tagihan di sini —
+    // kalau tidak, antrean berisi bayar kurang yang selamanya ditolak 422 saat
+    // sync (jadi "Transaksi Bermasalah" palsu) & struk tercetak kembalian salah.
+    if (!isPaid.value) {
+        toast.warning('Uang bayar kurang', {
+            description:
+                'Saat offline, isi jumlah bayar minimal sebesar total tagihan sebelum menyimpan.',
+        });
+        cartOpen.value = true;
+
+        return;
+    }
+
     const clientUid = newClientUid();
     const struk = buildLocalStruk(clientUid);
 
-    await enqueueSale(buildSalePayload(clientUid), struk);
+    await enqueueSale(buildSalePayload(clientUid), struk, offlineOwnerId());
     await refreshOffline();
     void syncOffline(); // coba kirim langsung; no-op bila memang masih offline
 
@@ -1215,7 +1229,7 @@ const showKonflik = ref(false);
 const konflikList = ref<QueuedSale[]>([]);
 
 async function bukaKonflik(): Promise<void> {
-    konflikList.value = await conflictSales();
+    konflikList.value = await conflictSales(offlineOwnerId());
     showKonflik.value = true;
 }
 
