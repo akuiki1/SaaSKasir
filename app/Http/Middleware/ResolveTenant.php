@@ -16,11 +16,12 @@ use Symfony\Component\HttpFoundation\Response;
  * Sumber toko (dalam urutan ini):
  * 1. Parameter rute {tokoSlug} — dipakai rute `toko/{tokoSlug}/...` (siap
  *    multi-toko: tiap toko dapat storefront sendiri lewat slug-nya).
- * 2. Tanpa slug (rute akar `/`, `pesan`, `lacak-pesanan`) — fallback ke
- *    satu-satunya toko aktif. Berlaku selama masih fase satu-instance-satu-
- *    klien; begitu toko kedua onboard di infra bersama, rute akar HARUS
- *    diarahkan ke halaman marketing (bukan storefront), dan storefront wajib
- *    selalu lewat slug/subdomain — lihat rencana Fase 2 di roadmap platform.
+ * 2. Tanpa slug (rute `pesan`, `lacak-pesanan`) — fallback ke satu-satunya toko
+ *    aktif. Berlaku selama masih fase satu-instance-satu-klien. Rute akar `/`
+ *    TIDAK lagi lewat sini: sudah jadi landing produk SiKasir (di luar middleware
+ *    tenant); storefront toko kini wajib lewat slug/subdomain — langkah Fase 2
+ *    di roadmap platform. Begitu toko kedua onboard, alur `pesan`/`lacak` tanpa
+ *    slug pun harus dipindah ke jalur ber-slug.
  *
  * Toko yang tidak ditemukan atau berstatus nonaktif → 404 (ModelNotFoundException
  * bawaan Laravel), bukan diam-diam fallback ke toko lain.

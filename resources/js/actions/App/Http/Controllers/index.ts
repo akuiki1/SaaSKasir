@@ -1,6 +1,7 @@
 import Api from './Api'
-import HomeController from './HomeController'
+import SikasirController from './SikasirController'
 import PesananPublikController from './PesananPublikController'
+import HomeController from './HomeController'
 import Admin from './Admin'
 import KategoriController from './KategoriController'
 import PelangganController from './PelangganController'
@@ -15,8 +16,9 @@ import KasirController from './KasirController'
 import Settings from './Settings'
 const Controllers = {
     Api: Object.assign(Api, Api),
-HomeController: Object.assign(HomeController, HomeController),
+SikasirController: Object.assign(SikasirController, SikasirController),
 PesananPublikController: Object.assign(PesananPublikController, PesananPublikController),
+HomeController: Object.assign(HomeController, HomeController),
 Admin: Object.assign(Admin, Admin),
 KategoriController: Object.assign(KategoriController, KategoriController),
 PelangganController: Object.assign(PelangganController, PelangganController),

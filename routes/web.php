@@ -15,18 +15,25 @@ use App\Http\Controllers\PesananPublikController;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\ProduksiController;
 use App\Http\Controllers\PromoController;
+use App\Http\Controllers\SikasirController;
 use App\Http\Controllers\StokController;
 use App\Http\Controllers\TransaksiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Rute publik/tamu (storefront + pesan online). Middleware `tenant` (lihat
-// App\Http\Middleware\ResolveTenant) menentukan toko aktif untuk request ini:
-// dari {tokoSlug} bila ada, atau fallback ke satu-satunya toko aktif untuk
-// rute akar (fase satu-instance-satu-klien).
-Route::middleware('tenant')->group(function () {
-    Route::get('/', [HomeController::class, 'index'])->name('home');
+// Root `/` = landing page publik SiKasir-the-product (pintu depan SaaS, halaman
+// marketing — BUKAN storefront toko). DI LUAR middleware tenant supaya SELALU
+// tampil walau belum ada toko sama sekali. Namanya tetap `home` agar redirect
+// yang menuju route('home') (mis. setelah logout) tetap valid. CTA-nya mengarah
+// ke registrasi mandiri (/register). Storefront toko kini HANYA via /toko/{slug}
+// (lihat grup tenant di bawah) — ini langkah Fase 2 yang dicatat di ResolveTenant.
+Route::get('/', [SikasirController::class, 'landing'])->name('home');
 
+// Rute publik/tamu bertenant (pesan online + storefront per toko). Middleware
+// `tenant` (App\Http\Middleware\ResolveTenant) menentukan toko aktif: dari
+// {tokoSlug} bila ada, atau fallback ke satu-satunya toko aktif (rute pesan
+// tanpa slug — dipakai alur pemesanan single-instance klien tunggal saat ini).
+Route::middleware('tenant')->group(function () {
     Route::post('pesan', [PesananPublikController::class, 'store'])
         ->middleware('throttle:15,1')
         ->name('pesan.store');
@@ -35,8 +42,8 @@ Route::middleware('tenant')->group(function () {
         ->middleware('throttle:30,1')
         ->name('pesan.lacak');
 
-    // Storefront per toko lewat slug — siap dipakai begitu toko kedua
-    // onboard di infra bersama (lihat catatan ResolveTenant & roadmap Fase 2).
+    // Storefront per toko lewat slug — jalur storefront resmi sekarang (root `/`
+    // sudah jadi landing produk; lihat catatan ResolveTenant & roadmap Fase 2).
     Route::prefix('toko/{tokoSlug}')->name('toko.')->group(function () {
         Route::get('/', [HomeController::class, 'index'])->name('home');
 
