@@ -9,3 +9,9 @@
 CHANGELOG.md export-ignore
 README.md export-ignore
 .github/workflows/browser-tests.yml export-ignore
+
+# Output wayfinder (laravel-vite-plugin-wayfinder) — generator Windows menulis
+# CRLF, memicu diff eol-only palsu tiap npm run build. -text menonaktifkan
+# normalisasi Git untuk path ini sepenuhnya, apa pun baris yang ditulis tool.
+resources/js/actions/** -text linguist-generated=true
+resources/js/routes/** -text linguist-generated=true
