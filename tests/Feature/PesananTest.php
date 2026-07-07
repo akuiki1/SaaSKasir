@@ -3,7 +3,10 @@
 use App\Models\Pelanggan;
 use App\Models\Pesanan;
 use App\Models\Produk;
+use App\Models\Toko;
 use App\Models\User;
+use App\Services\PesananService;
+use App\Support\TenantContext;
 
 /*
 |--------------------------------------------------------------------------
@@ -384,6 +387,48 @@ test('abandoned orders are auto-expired and stock is returned', function () {
         'id_produk' => $produk->id_produk,
         'tipe' => 'pesanan_batal',
     ]);
+});
+
+test('auto-expire memproses pesanan telantar di SEMUA toko, bukan cuma toko pertama', function () {
+    $service = app(PesananService::class);
+    $tenant = app(TenantContext::class);
+
+    // Dua toko berbeda — masing-masing punya satu pesanan telantar sendiri.
+    // Command berjalan tanpa login, jadi tanpa loop per-toko fallback TenantContext
+    // hanya menyentuh toko pertama di DB & pesanan toko lain terkunci selamanya.
+    $tokoA = Toko::factory()->create();
+    $tenant->setToko($tokoA);
+    $produkA = Produk::factory()->create(['stok' => 10, 'tipe_jual' => 'satuan', 'harga_jual' => 10000]);
+    $pesananA = $service->buat([
+        'nama' => 'Ani',
+        'telp' => '081200000001',
+        'items' => [['id_produk' => $produkA->id_produk, 'jumlah' => 3]],
+    ]);
+
+    $tokoB = Toko::factory()->create();
+    $tenant->setToko($tokoB);
+    $produkB = Produk::factory()->create(['stok' => 8, 'tipe_jual' => 'satuan', 'harga_jual' => 10000]);
+    $pesananB = $service->buat([
+        'nama' => 'Budi',
+        'telp' => '081200000002',
+        'items' => [['id_produk' => $produkB->id_produk, 'jumlah' => 5]],
+    ]);
+
+    // Reserve mengurangi stok: A 10→7, B 8→3.
+    expect((float) $produkA->fresh()->stok)->toBe(7.0);
+
+    // Majukan umur kedua pesanan melewati 14 hari (lintas toko → tanpa scope).
+    Pesanan::withoutGlobalScope('toko')
+        ->whereIn('id_pesanan', [$pesananA->id_pesanan, $pesananB->id_pesanan])
+        ->update(['created_at' => now()->subDays(15)]);
+
+    $this->artisan('pesanan:expire')->assertExitCode(0);
+
+    // KEDUA toko diproses: pesanan dibatalkan & stok yang di-reserve kembali utuh.
+    $this->assertDatabaseHas('pesanans', ['id_pesanan' => $pesananA->id_pesanan, 'status' => 'batal']);
+    $this->assertDatabaseHas('pesanans', ['id_pesanan' => $pesananB->id_pesanan, 'status' => 'batal']);
+    $this->assertDatabaseHas('produks', ['id_produk' => $produkA->id_produk, 'stok' => 10]);
+    $this->assertDatabaseHas('produks', ['id_produk' => $produkB->id_produk, 'stok' => 8]);
 });
 
 /** Helper: buat satu pesanan pending lengkap dengan item (reserve stok manual). */
