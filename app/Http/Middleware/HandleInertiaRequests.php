@@ -9,6 +9,7 @@ use App\Services\PesananService;
 use App\Support\Langganan;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -41,6 +42,14 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Jembatani flash Laravel klasik (`redirect()->with('success'/'error', ...)`)
+        // ke kanal toast Inertia yang SUDAH dikonsumsi frontend (flashToast.ts).
+        // Tanpa ini, puluhan CRUD admin yang pakai ->with('success', ...) tersimpan
+        // diam-diam tanpa notifikasi apa pun. Dipanggil di share() yang berjalan
+        // sebelum controller, jadi toast sudah ada di sesi saat Response Inertia
+        // menariknya (resolveFlashData). Lihat catatan urutan di Response::toResponse.
+        $this->bridgeSessionFlashToToast($request);
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -59,6 +68,35 @@ class HandleInertiaRequests extends Middleware
             // mengunci menu/UI di frontend. Closure (alasan sama dgn 'toko').
             'langganan' => fn () => $this->langgananInfo(),
         ];
+    }
+
+    /**
+     * Ubah flash sesi 'success'/'error' menjadi toast Inertia bila belum ada
+     * toast eksplisit (`Inertia::flash('toast', ...)`) di request ini. 'error'
+     * menang atas 'success' bila keduanya hadir (kasus langka). Aman dipanggil
+     * pada partial reload — bila sesi kosong tidak melakukan apa-apa.
+     */
+    private function bridgeSessionFlashToToast(Request $request): void
+    {
+        if (! $request->hasSession()) {
+            return;
+        }
+
+        // Toast eksplisit (Inertia::flash('toast', ...) — termasuk yang di-reflash
+        // dari redirect sebelumnya) selalu menang; jembatan hanya mengisi kekosongan.
+        if (isset(Inertia::getFlashed($request)['toast'])) {
+            return;
+        }
+
+        $session = $request->session();
+
+        foreach (['success' => 'success', 'error' => 'error'] as $key => $type) {
+            $pesan = $session->get($key);
+
+            if (is_string($pesan) && $pesan !== '') {
+                Inertia::flash('toast', ['type' => $type, 'message' => $pesan]);
+            }
+        }
     }
 
     /**

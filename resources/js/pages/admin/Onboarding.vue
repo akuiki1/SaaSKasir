@@ -10,8 +10,8 @@ import {
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { transactions as adminTransactions } from '@/routes/admin';
 import { importMethod, template } from '@/routes/admin/onboarding';
+import { transaksi as kasirTransaksi } from '@/routes/kasir';
 
 defineOptions({
     layout: {
@@ -121,8 +121,11 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
+        <!-- Admin boleh akses POS kasir (RoleMiddleware: admin superset kasir),
+             jadi "mulai jualan" benar-benar mendarat di halaman transaksi POS —
+             bukan tabel Data Transaksi yang masih kosong untuk toko baru. -->
         <Link
-            :href="adminTransactions().url"
+            :href="kasirTransaksi().url"
             class="flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-4 text-center font-bold text-primary-foreground transition-transform hover:scale-[1.01] active:scale-[0.99]"
         >
             Lewati, mulai jualan

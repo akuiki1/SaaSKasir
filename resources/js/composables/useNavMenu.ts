@@ -113,6 +113,11 @@ export function useNavMenu() {
                     label: 'Penjualan',
                     items: [
                         {
+                            title: 'Transaksi POS (Kasir)',
+                            href: '/kasir/transaksi',
+                            icon: ShoppingCart,
+                        },
+                        {
                             title: 'Data Transaksi',
                             href: '/admin/transactions',
                             icon: ReceiptText,

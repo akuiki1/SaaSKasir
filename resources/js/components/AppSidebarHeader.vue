@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
-import { ChevronDown, ExternalLink, Store } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { ChevronDown, ExternalLink, ShoppingCart, Store } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppearanceToggle from '@/components/AppearanceToggle.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -76,6 +76,17 @@ const showAvatar = computed(() => !!user.value?.avatar);
                 <span class="hidden sm:inline">Lihat Toko</span>
                 <ExternalLink class="hidden size-3 opacity-70 sm:inline" />
             </a>
+
+            <!-- Buka POS Kasir — hanya admin (kasir sudah di halaman transaksi). -->
+            <Link
+                v-if="user?.role === 'admin'"
+                href="/kasir/transaksi"
+                class="mr-1 inline-flex h-9 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300 dark:hover:bg-blue-500/20"
+                title="Buka POS (Point of Sale) untuk transaksi kasir"
+            >
+                <ShoppingCart class="size-4" />
+                <span class="hidden sm:inline">POS Kasir</span>
+            </Link>
 
             <AppearanceToggle />
 
