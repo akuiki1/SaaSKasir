@@ -9,11 +9,12 @@ import stok67e4e1 from './stok'
 import produksi22b192 from './produksi'
 import onboardingC947a0 from './onboarding'
 import laporan from './laporan'
+import laporanWa from './laporan-wa'
 import promosFc23d1 from './promos'
 import pesananC38bc3 from './pesanan'
 /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -28,7 +29,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -37,7 +38,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -46,7 +47,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -56,7 +57,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
     const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +67,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
         dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +76,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\DashboardController::dashboard
- * @see app/Http/Controllers/Admin/DashboardController.php:36
+ * @see app/Http/Controllers/Admin/DashboardController.php:38
  * @route '/admin/dashboard'
  */
         dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -1038,6 +1039,7 @@ produksi: Object.assign(produksi, produksi22b192),
 onboarding: Object.assign(onboarding, onboardingC947a0),
 laporan: Object.assign(laporan, laporan),
 langganan: Object.assign(langganan, langganan),
+laporanWa: Object.assign(laporanWa, laporanWa),
 promos: Object.assign(promos, promosFc23d1),
 pesanan: Object.assign(pesanan, pesananC38bc3),
 }

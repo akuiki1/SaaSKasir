@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
 export const landing = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ landing.definition = {
 
 /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
 landing.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ landing.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
 landing.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ landing.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
 landing.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ landing.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
     const landingForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ landing.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
         landingForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ landing.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\SikasirController::landing
- * @see app/Http/Controllers/SikasirController.php:20
+ * @see app/Http/Controllers/SikasirController.php:21
  * @route '/'
  */
         landingForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

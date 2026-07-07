@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LanggananController;
+use App\Http\Controllers\Admin\LaporanWaController;
 use App\Http\Controllers\Ceo\DashboardController as CeoDashboardController;
 use App\Http\Controllers\Admin\LaporanController;
 use App\Http\Controllers\Admin\OnboardingController;
@@ -159,6 +160,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Langganan (status tier, perbandingan, riwayat, CTA upgrade).
         Route::get('admin/langganan', [LanggananController::class, 'index'])->name('admin.langganan');
+
+        // Preview laporan tutup toko WA (JSON) — kartu info di dashboard admin.
+        Route::get('admin/laporan-wa/preview', [LaporanWaController::class, 'preview'])->name('admin.laporan-wa.preview');
 
         // Promo
         Route::get('admin/promos', [PromoController::class, 'index'])->name('admin.promos');

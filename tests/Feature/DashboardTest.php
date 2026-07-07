@@ -196,6 +196,74 @@ test('admin dashboard shows today stats and meta', function () {
     );
 });
 
+test('admin dashboard nulls gross profit for gratis tier (paywall)', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    \App\Models\Toko::query()->firstOrFail()
+        ->forceFill(['tier' => 'gratis', 'langganan_sampai' => null])
+        ->save();
+
+    $produk = Produk::factory()->create(['harga_modal' => 4000]);
+    $trx = Transaksi::factory()->create([
+        'id_user' => $admin->id,
+        'total_harga' => 50000,
+        'bayar' => 50000,
+        'kembalian' => 0,
+        'created_at' => Carbon::today()->setTime(10, 0),
+    ]);
+    DetailTransaksi::factory()->create([
+        'id_transaksi' => $trx->id_transaksi,
+        'id_produk' => $produk->id_produk,
+        'jumlah' => 2,
+        'harga' => 25000,
+        'modal' => 4000,
+        'subtotal' => 50000,
+    ]);
+
+    $this->actingAs($admin);
+
+    // Angka laba/margin TIDAK boleh dikirim ke frontend (bukan sekadar disembunyikan);
+    // omzet & jumlah transaksi tetap terbuka untuk semua tier.
+    $this->get(route('admin.dashboard'))->assertOk()->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('admin/Dashboard')
+            ->where('today_stats.gross_profit', null)
+            ->where('today_stats.gross_profit_delta', null)
+            ->where('today_stats.margin', null)
+            ->where('today_stats.revenue', 50000)
+            ->where('today_stats.transactions', 1)
+    );
+});
+
+test('admin dashboard shows gross profit for paid tier', function () {
+    // Toko default test di-grandfather ke 'bisnis' oleh migrasi langganan.
+    $admin = User::factory()->create(['role' => 'admin']);
+    $produk = Produk::factory()->create(['harga_modal' => 4000]);
+
+    $trx = Transaksi::factory()->create([
+        'id_user' => $admin->id,
+        'total_harga' => 50000,
+        'bayar' => 50000,
+        'kembalian' => 0,
+        'created_at' => Carbon::today()->setTime(10, 0),
+    ]);
+    DetailTransaksi::factory()->create([
+        'id_transaksi' => $trx->id_transaksi,
+        'id_produk' => $produk->id_produk,
+        'jumlah' => 2,
+        'harga' => 25000,
+        'modal' => 4000,
+        'subtotal' => 50000,
+    ]);
+
+    $this->actingAs($admin);
+
+    $this->get(route('admin.dashboard'))->assertOk()->assertInertia(
+        fn (AssertableInertia $page) => $page
+            ->component('admin/Dashboard')
+            ->where('today_stats.gross_profit', 42000) // 50.000 - (2 × 4.000)
+    );
+});
+
 test('admin dashboard returns a 7-day trend including today', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 

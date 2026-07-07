@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight,
     ArrowRightLeft,
@@ -245,6 +245,11 @@ const waHref = computed(() =>
         ? `https://wa.me/${props.waKontak}?text=${encodeURIComponent('Halo, saya mau tanya soal SiKasir untuk warung saya.')}`
         : null,
 );
+
+// User yang sudah login diarahkan ke aplikasinya, bukan disuruh "Masuk" lagi.
+// /dashboard = dispatcher per peran (admin/kasir/ceo/superadmin).
+const page = usePage();
+const sudahLogin = computed(() => !!page.props.auth?.user);
 </script>
 
 <template>
@@ -326,18 +331,29 @@ const waHref = computed(() =>
                         <Sun v-if="appearance === 'dark'" class="h-4 w-4" />
                         <Moon v-else class="h-4 w-4" />
                     </button>
-                    <Link
-                        href="/login"
-                        class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground sm:inline-flex"
-                        >Masuk</Link
-                    >
-                    <Link
-                        href="/register"
-                        class="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-500 sm:inline-flex"
-                    >
-                        Daftar Gratis
-                        <ArrowRight class="h-4 w-4" />
-                    </Link>
+                    <template v-if="sudahLogin">
+                        <Link
+                            href="/dashboard"
+                            class="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-500 sm:inline-flex"
+                        >
+                            Buka Dashboard
+                            <ArrowRight class="h-4 w-4" />
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <Link
+                            href="/login"
+                            class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition hover:text-foreground sm:inline-flex"
+                            >Masuk</Link
+                        >
+                        <Link
+                            href="/register"
+                            class="hidden items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-500 sm:inline-flex"
+                        >
+                            Daftar Gratis
+                            <ArrowRight class="h-4 w-4" />
+                        </Link>
+                    </template>
                     <button
                         type="button"
                         aria-label="Menu"
@@ -393,17 +409,27 @@ const waHref = computed(() =>
                         >Bantuan</a
                     >
                     <Link
-                        href="/login"
-                        class="rounded-lg px-3 py-2 hover:bg-muted"
-                        >Masuk</Link
-                    >
-                    <Link
-                        href="/register"
+                        v-if="sudahLogin"
+                        href="/dashboard"
                         class="mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 font-bold text-white"
                     >
-                        Daftar Gratis
+                        Buka Dashboard
                         <ArrowRight class="h-4 w-4" />
                     </Link>
+                    <template v-else>
+                        <Link
+                            href="/login"
+                            class="rounded-lg px-3 py-2 hover:bg-muted"
+                            >Masuk</Link
+                        >
+                        <Link
+                            href="/register"
+                            class="mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 font-bold text-white"
+                        >
+                            Daftar Gratis
+                            <ArrowRight class="h-4 w-4" />
+                        </Link>
+                    </template>
                 </div>
             </div>
         </header>
@@ -987,14 +1013,24 @@ const waHref = computed(() =>
                     >
                 </div>
                 <div class="flex items-center gap-5 text-muted-foreground">
-                    <Link href="/login" class="transition hover:text-foreground"
-                        >Masuk</Link
-                    >
                     <Link
-                        href="/register"
+                        v-if="sudahLogin"
+                        href="/dashboard"
                         class="transition hover:text-foreground"
-                        >Daftar</Link
+                        >Buka Dashboard</Link
                     >
+                    <template v-else>
+                        <Link
+                            href="/login"
+                            class="transition hover:text-foreground"
+                            >Masuk</Link
+                        >
+                        <Link
+                            href="/register"
+                            class="transition hover:text-foreground"
+                            >Daftar</Link
+                        >
+                    </template>
                     <a
                         v-if="waHref"
                         :href="waHref"

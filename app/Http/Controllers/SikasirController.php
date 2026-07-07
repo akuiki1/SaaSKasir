@@ -7,13 +7,14 @@ use Inertia\Response;
 
 /**
  * Landing page publik SiKasir-the-product (halaman marketing produk, BUKAN
- * storefront toko tertentu). Berdiri sendiri di /sikasir, DI LUAR middleware
- * tenant — tidak ter-scope ke toko manapun; CTA-nya mengarah ke registrasi
- * mandiri (/register).
+ * storefront toko tertentu). Disajikan di root `/` (rute `home`), DI LUAR
+ * middleware tenant — selalu tampil walau belum ada toko aktif sama sekali;
+ * CTA-nya mengarah ke registrasi mandiri (/register), dan user yang sudah
+ * login diarahkan komponennya ke /dashboard.
  *
- * Root `/` sengaja TETAP storefront toko default (lihat ResolveTenant, fase
- * satu-instance-satu-klien); begitu instance jadi multi-tenant, `/` bisa
- * dipromosikan ke halaman ini tanpa menulis ulang komponennya.
+ * Storefront toko kini HANYA via /toko/{slug} (lihat ResolveTenant &
+ * SikasirLandingTest). Jangan kembalikan `/` ke HomeController — itu
+ * membalikkan keputusan 2026-07-05.
  */
 class SikasirController extends Controller
 {

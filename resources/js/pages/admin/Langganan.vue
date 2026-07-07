@@ -123,6 +123,15 @@ const metodeLabel: Record<string, string> = {
                 <MessageCircle class="h-4 w-4" />
                 Upgrade via WhatsApp
             </a>
+            <!-- Fallback bila nomor WA SiKasir belum dikonfigurasi — jalur
+                 upgrade tidak boleh buntu tanpa penjelasan. -->
+            <p
+                v-else-if="tier_efektif !== 'bisnis'"
+                class="max-w-xs rounded-lg border border-dashed border-sidebar-border/70 p-3 text-sm text-muted-foreground dark:border-sidebar-border"
+            >
+                Ingin upgrade? Hubungi tim SiKasir yang memasang aplikasi ini
+                untuk mengaktifkan paket berbayar.
+            </p>
         </div>
 
         <!-- Perbandingan tier -->

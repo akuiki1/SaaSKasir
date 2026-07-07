@@ -10,12 +10,15 @@ import {
     Clock,
     FileText,
     LineChart,
+    Lock,
+    MessageCircle,
     Package,
     Percent,
     PackageX,
     ShoppingCart,
     Users,
     Wallet,
+    X,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { formatRupiah, formatCompact, formatNumber } from '@/lib/format';
@@ -59,7 +62,8 @@ const props = defineProps<{
     today_stats: {
         revenue: number;
         transactions: number;
-        gross_profit: number;
+        // null = tier gratis (paywall laporan keuangan) → kartu teaser terkunci.
+        gross_profit: number | null;
         items_sold: number;
         avg_items: number;
         margin: number | null;
@@ -70,7 +74,41 @@ const props = defineProps<{
     trend: TrendPoint[];
     alerts: Alert[];
     recent_activity: Activity[];
+    laporan_wa: {
+        jam_kirim: string;
+        tujuan: string | null;
+        aktif: boolean;
+    };
 }>();
+
+// --- Preview laporan tutup toko WA (modal, fetch on demand) ---
+const waPreviewOpen = ref(false);
+const waPreviewLoading = ref(false);
+const waPreviewError = ref(false);
+const waPreviewPesan = ref<string | null>(null);
+
+async function bukaWaPreview(): Promise<void> {
+    waPreviewOpen.value = true;
+    waPreviewLoading.value = true;
+    waPreviewError.value = false;
+
+    try {
+        const res = await fetch('/admin/laporan-wa/preview', {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
+        waPreviewPesan.value = ((await res.json()) as { pesan: string | null })
+            .pesan;
+    } catch {
+        waPreviewError.value = true;
+    } finally {
+        waPreviewLoading.value = false;
+    }
+}
 
 // --- Kartu KPI hari ini ---
 const kpiCards = computed(() => [
@@ -90,7 +128,12 @@ const kpiCards = computed(() => [
     },
     {
         label: 'Laba Kotor Hari Ini',
-        value: formatRupiah(props.today_stats.gross_profit),
+        // Terkunci untuk tier gratis (server mengirim null) → teaser upgrade.
+        locked: props.today_stats.gross_profit === null,
+        value:
+            props.today_stats.gross_profit === null
+                ? ''
+                : formatRupiah(props.today_stats.gross_profit),
         delta: props.today_stats.gross_profit_delta,
         margin: props.today_stats.margin,
         icon: Wallet,
@@ -252,6 +295,37 @@ function deltaTone(delta: number | null): string {
                 :key="card.label"
                 class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
             >
+                <!-- Teaser terkunci (tier gratis): angka disamarkan — nilai asli
+                     memang TIDAK dikirim server — plus ajakan upgrade. -->
+                <template v-if="card.locked">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">{{ card.label }}</p>
+                            <p
+                                class="mt-2 text-2xl font-bold tracking-tight text-slate-400 blur-[5px] select-none dark:text-slate-500"
+                                aria-hidden="true"
+                            >
+                                Rp 1.234.567
+                            </p>
+                        </div>
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg" :class="card.tint">
+                            <Lock class="h-5 w-5" />
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <Link
+                            href="/admin/langganan"
+                            class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 transition hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                        >
+                            <Lock class="h-3 w-3" />
+                            Buka dengan paket Warung
+                            <ArrowRight class="h-3 w-3" />
+                        </Link>
+                    </div>
+                </template>
+
+                <template v-else>
                 <div class="flex items-start justify-between gap-4">
                     <div class="min-w-0">
                         <p class="text-sm font-medium text-slate-500 dark:text-slate-400">{{ card.label }}</p>
@@ -285,6 +359,7 @@ function deltaTone(delta: number | null): string {
                         {{ card.margin === null ? '—' : `${card.margin}% margin` }}
                     </span>
                 </div>
+                </template>
             </div>
         </div>
 
@@ -444,6 +519,86 @@ function deltaTone(delta: number | null): string {
                     </p>
                 </div>
             </section>
+        </div>
+
+        <!-- Laporan tutup toko via WhatsApp -->
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300">
+                        <MessageCircle class="h-5 w-5" />
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200">Laporan Tutup Toko via WhatsApp</h2>
+                            <span
+                                class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                :class="
+                                    props.laporan_wa.aktif
+                                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                                        : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                                "
+                            >
+                                {{ props.laporan_wa.aktif ? 'Aktif' : 'Belum aktif' }}
+                            </span>
+                        </div>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            <template v-if="props.laporan_wa.tujuan">
+                                Ringkasan omzet, transaksi, dan produk terlaris dikirim otomatis tiap hari
+                                sekitar pukul {{ props.laporan_wa.jam_kirim }} ke {{ props.laporan_wa.tujuan }}.
+                            </template>
+                            <template v-else>
+                                Nomor WhatsApp toko belum terisi, jadi laporan harian belum bisa dikirim.
+                                Hubungi tim SiKasir untuk melengkapinya.
+                            </template>
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    class="inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg border border-emerald-200 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 sm:self-center dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                    @click="bukaWaPreview"
+                >
+                    <MessageCircle class="h-3.5 w-3.5" />
+                    Lihat contoh laporan
+                </button>
+            </div>
+        </section>
+
+        <!-- Modal preview laporan WA -->
+        <div
+            v-if="waPreviewOpen"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            @click.self="waPreviewOpen = false"
+        >
+            <div class="flex max-h-[85svh] w-full max-w-md flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+                <div class="flex items-center justify-between border-b border-slate-200 p-4 dark:border-zinc-800">
+                    <h3 class="font-bold">Contoh Laporan Hari Ini</h3>
+                    <button
+                        type="button"
+                        class="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-zinc-800"
+                        @click="waPreviewOpen = false"
+                    >
+                        <X class="h-5 w-5" />
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4">
+                    <p v-if="waPreviewLoading" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        Menyusun laporan…
+                    </p>
+                    <p v-else-if="waPreviewError" class="py-6 text-center text-sm text-rose-600 dark:text-rose-400">
+                        Gagal memuat contoh laporan. Tutup dan coba lagi.
+                    </p>
+                    <!-- Gaya gelembung chat supaya admin langsung paham ini pesan WA -->
+                    <pre
+                        v-else-if="waPreviewPesan"
+                        class="rounded-xl rounded-tl-sm bg-emerald-50 p-4 font-sans text-sm leading-relaxed whitespace-pre-wrap text-slate-800 dark:bg-emerald-500/10 dark:text-slate-100"
+                        >{{ waPreviewPesan }}</pre>
+                    <p v-else class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        Belum ada transaksi hari ini — laporan terbentuk otomatis setelah ada penjualan.
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
 </template>

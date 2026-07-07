@@ -1613,6 +1613,16 @@ const promoCountdown = (berakhirPada: string): string | null => {
                             class="transition-colors hover:text-[var(--kg-primary)]"
                             >Kembali ke atas</a
                         >
+                        <span>•</span>
+                        <!-- Viral loop: pengunjung storefront (calon pemilik toko
+                             lain) diarahkan ke landing produk SiKasir. -->
+                        <a
+                            href="/"
+                            target="_blank"
+                            rel="noopener"
+                            class="font-semibold transition-colors hover:text-[var(--kg-primary)]"
+                            >⚡ Powered by SiKasir</a
+                        >
                     </div>
                 </div>
             </div>

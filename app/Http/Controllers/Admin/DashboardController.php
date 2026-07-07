@@ -8,6 +8,8 @@ use App\Models\Produk;
 use App\Models\Promo;
 use App\Models\Transaksi;
 use App\Services\LaporanFinansialService;
+use App\Support\Langganan;
+use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +56,16 @@ class DashboardController extends Controller
             'gross_profit_delta' => $this->deltaPct($today['gross_profit'], $yesterday['gross_profit']),
         ];
 
+        // Laba kotor & margin ikut paywall Laporan Keuangan (Warung+). Angka
+        // di-null-kan DI SERVER, bukan sekadar disembunyikan di frontend —
+        // frontend merender kartu teaser terkunci saat gross_profit null.
+        $toko = app(TenantContext::class)->toko();
+        if (! Langganan::bolehAkses('laporan_keuangan', $toko?->tierEfektif() ?? 'gratis')) {
+            $todayStats['gross_profit'] = null;
+            $todayStats['gross_profit_delta'] = null;
+            $todayStats['margin'] = null;
+        }
+
         // Kasir yang sedang/terakhir bertugas hari ini (proksi "siapa yang jaga").
         $activeCashier = Transaksi::with('user:id,name')
             ->whereBetween('created_at', [$todayStart, $todayEnd])
@@ -69,6 +81,17 @@ class DashboardController extends Controller
             'trend' => $this->trend7d(),
             'alerts' => $this->alerts($todayEnd),
             'recent_activity' => $this->recentActivity(),
+            // Kartu info laporan tutup toko WA — supaya fitur terjadwal (command
+            // laporan:harian-wa) terlihat oleh admin, lengkap dengan previewnya.
+            'laporan_wa' => [
+                'jam_kirim' => (string) config('services.whatsapp.jam_kirim', '21:00'),
+                'tujuan' => $toko?->whatsapp,
+                // Live hanya bila driver gateway + kredensial terisi; selain itu
+                // pesan cuma ditulis ke log (mode uji) — jujur ke admin.
+                'aktif' => config('services.whatsapp.driver') === 'gateway'
+                    && filled(config('services.whatsapp.endpoint'))
+                    && filled(config('services.whatsapp.token')),
+            ],
         ]);
     }
 
