@@ -45,4 +45,19 @@ return [
         'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
     ],
 
+    // Pengirim WhatsApp untuk laporan tutup toko harian (fitur retensi).
+    // Pola SEAM seperti Midtrans: driver 'log' default (tulis pesan ke log,
+    // gratis & aman di dev/CI) — TIDAK butuh kredensial. Driver 'gateway'
+    // (GatewayWhatsappSender) memakai HTTP POST bergaya gateway lokal Indonesia
+    // (mis. Fonnte): isi WHATSAPP_ENDPOINT + WHATSAPP_TOKEN lalu set driver.
+    // Tetap inert selama endpoint/token kosong (tidak ada panggilan HTTP live).
+    'whatsapp' => [
+        'driver' => env('WHATSAPP_DRIVER', 'log'),
+        'endpoint' => env('WHATSAPP_ENDPOINT'),
+        'token' => env('WHATSAPP_TOKEN'),
+        // Jam kirim laporan harian (24 jam, waktu server). Dijadwalkan di
+        // routes/console.php; default 21:00 (menjelang tutup warung).
+        'jam_kirim' => env('WHATSAPP_JAM_KIRIM', '21:00'),
+    ],
+
 ];

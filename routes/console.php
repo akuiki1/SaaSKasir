@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // Auto-expire pesanan online yang ditelantarkan (>2 minggu) → batal + stok kembali.
 Schedule::command('pesanan:expire')->dailyAt('02:00');
+
+// Laporan tutup toko harian via WhatsApp ke pemilik tiap toko aktif (retensi).
+// Jam kirim dari config (default 21:00, menjelang warung tutup).
+Schedule::command('laporan:harian-wa')->dailyAt(config('services.whatsapp.jam_kirim', '21:00'));

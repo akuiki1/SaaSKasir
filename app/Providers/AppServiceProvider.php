@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\WhatsappSender;
+use App\Services\Whatsapp\GatewayWhatsappSender;
+use App\Services\Whatsapp\LogWhatsappSender;
 use App\Support\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +23,17 @@ class AppServiceProvider extends ServiceProvider
         // Satu instance per request/proses: semua model tenant-scoped harus
         // melihat toko aktif yang sama sepanjang request tersebut.
         $this->app->singleton(TenantContext::class);
+
+        // Pengirim WhatsApp (SEAM): pilih driver dari config. Default 'log'
+        // (gratis, tanpa kredensial) → 'gateway' saat integrasi live siap.
+        $this->app->singleton(WhatsappSender::class, function (): WhatsappSender {
+            return config('services.whatsapp.driver') === 'gateway'
+                ? new GatewayWhatsappSender(
+                    config('services.whatsapp.endpoint'),
+                    config('services.whatsapp.token'),
+                )
+                : new LogWhatsappSender;
+        });
     }
 
     /**
