@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown, ExternalLink, Store } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppearanceToggle from '@/components/AppearanceToggle.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -28,7 +28,13 @@ withDefaults(
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
-const isKasir = computed(() => user.value?.role !== 'admin');
+const isKasir = computed(() => user.value?.role === 'kasir');
+
+// Tombol "Lihat Toko" (khusus admin): buka storefront publik toko sendiri
+// di tab baru — melihat live apa yang dilihat pelanggan.
+const storefrontUrl = computed(() =>
+    user.value?.role === 'admin' ? (page.props.toko?.storefront_url ?? null) : null,
+);
 
 const { getInitials } = useInitials();
 const showAvatar = computed(() => !!user.value?.avatar);
@@ -57,6 +63,20 @@ const showAvatar = computed(() => !!user.value?.avatar);
 
         <!-- Akun + pengaturan tampilan di kanan atas header (admin & kasir). -->
         <div class="flex flex-1 shrink-0 items-center justify-end gap-1">
+            <!-- Lihat storefront toko sendiri (tab baru) — hanya admin. -->
+            <a
+                v-if="storefrontUrl"
+                :href="storefrontUrl"
+                target="_blank"
+                rel="noopener"
+                class="mr-1 inline-flex h-9 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
+                title="Buka halaman toko Anda seperti yang dilihat pelanggan"
+            >
+                <Store class="size-4" />
+                <span class="hidden sm:inline">Lihat Toko</span>
+                <ExternalLink class="hidden size-3 opacity-70 sm:inline" />
+            </a>
+
             <AppearanceToggle />
 
             <DropdownMenu>

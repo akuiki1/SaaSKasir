@@ -16,6 +16,24 @@ class UserSeeder extends Seeder
         // dipakai di sini karena ini kode server tepercaya, bukan input pengguna.
         $idToko = Toko::query()->value('id_toko');
 
+        // Peran platform (kantor pusat SiKasir) — SENGAJA tanpa id_toko:
+        // ceo memantau seluruh sistem, superadmin mengelola toko & admin.
+        User::forceCreate([
+            'name' => 'CEO SiKasir',
+            'email' => 'ceo@sikasir.id',
+            'role' => 'ceo',
+            'id_toko' => null,
+            'password' => Hash::make('ceo12345'),
+        ]);
+
+        User::forceCreate([
+            'name' => 'Super Admin SiKasir',
+            'email' => 'superadmin@sikasir.id',
+            'role' => 'superadmin',
+            'id_toko' => null,
+            'password' => Hash::make('super123'),
+        ]);
+
         User::forceCreate([
             'name' => 'Budi Santoso',
             'email' => 'admin@gmail.com',

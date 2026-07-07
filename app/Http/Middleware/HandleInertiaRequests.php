@@ -95,6 +95,10 @@ class HandleInertiaRequests extends Middleware
 
         return [
             'nama' => $toko->nama,
+            'slug' => $toko->slug,
+            // URL storefront publik — dipakai tombol "Lihat Toko" di header
+            // admin untuk melihat live toko sendiri sebagaimana pelanggan.
+            'storefront_url' => $toko->slug ? route('toko.home', ['tokoSlug' => $toko->slug]) : null,
             'whatsapp' => $toko->whatsapp,
             'alamat' => $toko->alamat,
             'instagram' => $toko->instagram,

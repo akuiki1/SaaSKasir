@@ -24,18 +24,20 @@ class RoleMiddleware
             abort(403, 'Unauthorized.');
         }
 
-        // Admin adalah superset yang disengaja: pemilik toko (termasuk hasil
-        // registrasi mandiri solo-operator) boleh akses rute berperan apa pun,
-        // termasuk POS kasir penuh, tanpa perlu akun kedua. Kasir TIDAK
-        // sebaliknya — tetap terbatas ke daftar $roles yang diberikan.
-        if ($user->role === 'admin') {
+        if (in_array($user->role, $roles, true)) {
             return $next($request);
         }
 
-        if (! in_array($user->role, $roles)) {
-            abort(403, 'Unauthorized.');
+        // Admin adalah superset yang disengaja atas peran TOKO: pemilik toko
+        // (termasuk hasil registrasi mandiri solo-operator) boleh akses POS
+        // kasir penuh tanpa perlu akun kedua. Superset ini TIDAK berlaku
+        // untuk peran platform (ceo/superadmin) — panel lintas-tenant
+        // tertutup bagi admin toko; sebaliknya peran platform juga tidak
+        // ikut membuka rute toko (mereka tidak punya id_toko).
+        if ($user->role === 'admin' && in_array('kasir', $roles, true)) {
+            return $next($request);
         }
 
-        return $next($request);
+        abort(403, 'Unauthorized.');
     }
 }

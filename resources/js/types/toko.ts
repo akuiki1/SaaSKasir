@@ -2,6 +2,9 @@
 // HandleInertiaRequests::share() (backend), diakses via page.props.toko.
 export type Toko = {
     nama: string;
+    slug: string | null;
+    /** URL storefront publik (/toko/{slug}) — tombol "Lihat Toko" admin. */
+    storefront_url: string | null;
     whatsapp: string | null;
     alamat: string | null;
     instagram: string | null;

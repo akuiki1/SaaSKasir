@@ -30,7 +30,19 @@ class TenantContext
     public function id(): ?int
     {
         if (! $this->resolved) {
-            $this->tokoId = Auth::user()?->id_toko ?? Toko::query()->value('id_toko');
+            $user = Auth::user();
+            $this->tokoId = $user?->id_toko;
+
+            // Fallback "satu-satunya toko di DB" HANYA untuk user toko yang
+            // datanya anomali & proses tanpa auth (rute publik/console).
+            // Peran platform (ceo/superadmin) sah tanpa id_toko dan TIDAK
+            // boleh jatuh ke toko pertama — mereka bekerja lintas-toko;
+            // dengan null, global scope BelongsToToko nonaktif dan query
+            // lintas-tenant dilakukan eksplisit di controller platform.
+            if ($this->tokoId === null && ! $user?->isPlatform()) {
+                $this->tokoId = Toko::query()->value('id_toko');
+            }
+
             $this->resolved = true;
         }
 

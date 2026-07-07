@@ -57,4 +57,15 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Toko::class, 'id_toko', 'id_toko');
     }
+
+    /**
+     * Peran level platform (kantor pusat SiKasir): ceo memantau seluruh
+     * sistem, superadmin mengelola toko & admin. Keduanya lintas-tenant —
+     * id_toko null — dan tidak menyentuh rute toko (lihat RoleMiddleware
+     * & TenantContext).
+     */
+    public function isPlatform(): bool
+    {
+        return in_array($this->role, ['ceo', 'superadmin'], true);
+    }
 }

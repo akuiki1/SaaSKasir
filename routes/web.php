@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LanggananController;
+use App\Http\Controllers\Ceo\DashboardController as CeoDashboardController;
 use App\Http\Controllers\Admin\LaporanController;
 use App\Http\Controllers\Admin\OnboardingController;
 use App\Http\Controllers\Admin\UserController;
@@ -17,6 +18,9 @@ use App\Http\Controllers\ProduksiController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\SikasirController;
 use App\Http\Controllers\StokController;
+use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
+use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\SuperAdmin\TokoController as SuperAdminTokoController;
 use App\Http\Controllers\TransaksiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -59,12 +63,33 @@ Route::middleware('tenant')->group(function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
-        if (Auth::user()?->role === 'admin') {
-            return redirect()->route('admin.dashboard');
-        }
-
-        return redirect()->route('kasir.dashboard');
+        return redirect()->route(match (Auth::user()?->role) {
+            'ceo' => 'ceo.dashboard',
+            'superadmin' => 'superadmin.dashboard',
+            'admin' => 'admin.dashboard',
+            default => 'kasir.dashboard',
+        });
     })->name('dashboard');
+
+    // ----- Panel platform (kantor pusat SiKasir, lintas-tenant) -----
+    // CEO: murni pemantauan sistem — satu dashboard baca-saja, tanpa aksi.
+    Route::middleware(['role:ceo'])->group(function () {
+        Route::get('ceo/dashboard', [CeoDashboardController::class, 'index'])->name('ceo.dashboard');
+    });
+
+    // Super Admin: operasional platform — kelola toko (status, langganan,
+    // onboarding toko baru) & kelola akun admin (reset password).
+    Route::middleware(['role:superadmin'])->group(function () {
+        Route::get('superadmin/dashboard', [SuperAdminDashboardController::class, 'index'])->name('superadmin.dashboard');
+
+        Route::get('superadmin/toko', [SuperAdminTokoController::class, 'index'])->name('superadmin.toko');
+        Route::post('superadmin/toko', [SuperAdminTokoController::class, 'store'])->name('superadmin.toko.store');
+        Route::put('superadmin/toko/{toko}/status', [SuperAdminTokoController::class, 'updateStatus'])->name('superadmin.toko.status');
+        Route::post('superadmin/toko/{toko}/langganan', [SuperAdminTokoController::class, 'perpanjang'])->name('superadmin.toko.langganan');
+
+        Route::get('superadmin/admins', [SuperAdminAdminController::class, 'index'])->name('superadmin.admins');
+        Route::put('superadmin/admins/{user}/password', [SuperAdminAdminController::class, 'resetPassword'])->name('superadmin.admins.password');
+    });
 
     Route::middleware(['role:admin'])->group(function () {
         Route::get('admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');

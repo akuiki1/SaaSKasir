@@ -12,6 +12,7 @@ import {
     Package,
     ReceiptText,
     ShoppingCart,
+    Store,
     Tags,
     TrendingUp,
     UserCog,
@@ -28,23 +29,68 @@ export type NavSearchEntry = {
     group: string;
 };
 
+/** Dashboard "rumah" tiap peran — dipakai sidebar (logo) & menu. */
+export const DASHBOARD_PER_ROLE: Record<string, string> = {
+    ceo: '/ceo/dashboard',
+    superadmin: '/superadmin/dashboard',
+    admin: '/admin/dashboard',
+    kasir: '/kasir/dashboard',
+};
+
 /**
- * Sumber tunggal definisi menu navigasi (admin & kasir). Dipakai oleh sidebar
- * (AppSidebar/NavMain) dan command-palette di header (MenuSearch) agar tidak ganda.
+ * Sumber tunggal definisi menu navigasi per peran (ceo, superadmin, admin,
+ * kasir). Dipakai oleh sidebar (AppSidebar/NavMain) dan command-palette di
+ * header (MenuSearch) agar tidak ganda.
  */
 export function useNavMenu() {
     const page = usePage();
     const user = computed(() => page.props.auth.user);
-    const isAdmin = computed(() => user.value?.role === 'admin');
+    const role = computed(() => (user.value?.role as string) ?? 'kasir');
+    const isAdmin = computed(() => role.value === 'admin');
+    // Peran platform (kantor pusat SiKasir): lintas-toko, panelnya sendiri.
+    const isPlatform = computed(
+        () => role.value === 'ceo' || role.value === 'superadmin',
+    );
 
-    // Dashboard disematkan di atas (di luar grup) untuk admin.
+    const homeHref = computed(
+        () => DASHBOARD_PER_ROLE[role.value] ?? '/kasir/dashboard',
+    );
+
+    // Dashboard disematkan di atas (di luar grup) untuk admin & peran platform.
     const pinned = computed<NavItem | undefined>(() =>
-        isAdmin.value
-            ? { title: 'Dashboard', href: '/admin/dashboard', icon: LayoutGrid }
+        isAdmin.value || isPlatform.value
+            ? { title: 'Dashboard', href: homeHref.value, icon: LayoutGrid }
             : undefined,
     );
 
     const groups = computed<NavGroup[]>(() => {
+        // CEO: murni pemantauan — seluruh isinya ada di satu dashboard,
+        // sidebar sengaja hanya berisi Dashboard (pinned) tanpa grup lain.
+        if (role.value === 'ceo') {
+            return [];
+        }
+
+        // Super Admin: operasional platform — kelola toko & admin.
+        if (role.value === 'superadmin') {
+            return [
+                {
+                    label: 'Kelola Platform',
+                    items: [
+                        {
+                            title: 'Kelola Toko',
+                            href: '/superadmin/toko',
+                            icon: Store,
+                        },
+                        {
+                            title: 'Kelola Admin',
+                            href: '/superadmin/admins',
+                            icon: UserCog,
+                        },
+                    ],
+                },
+            ];
+        }
+
         if (isAdmin.value) {
             // Badge dari shared props (lihat HandleInertiaRequests); tampil bila > 0.
             const b = page.props.sidebarBadges;
@@ -218,5 +264,5 @@ export function useNavMenu() {
         return entries;
     });
 
-    return { isAdmin, pinned, groups, searchEntries };
+    return { role, isAdmin, isPlatform, homeHref, pinned, groups, searchEntries };
 }

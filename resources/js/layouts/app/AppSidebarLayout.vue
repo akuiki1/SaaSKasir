@@ -17,8 +17,10 @@ withDefaults(defineProps<Props>(), {
     breadcrumbs: () => [],
 });
 
+// Hanya kasir sungguhan yang dapat bottom-nav mobile; admin & peran platform
+// (ceo/superadmin) memakai sidebar penuh.
 const page = usePage();
-const isKasir = computed(() => page.props.auth.user?.role !== 'admin');
+const isKasir = computed(() => page.props.auth.user?.role === 'kasir');
 
 // Beri ruang di bawah konten agar tidak tertutup Bottom Navigation (mobile kasir).
 const contentClass = computed(() =>

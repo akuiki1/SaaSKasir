@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -14,14 +14,20 @@ import {
 } from '@/components/ui/sidebar';
 import { useNavMenu } from '@/composables/useNavMenu';
 
-const page = usePage();
-const user = computed(() => page.props.auth.user);
+const { role, isAdmin, isPlatform, homeHref, pinned, groups } = useNavMenu();
 
-const { isAdmin, pinned, groups } = useNavMenu();
+// Sidebar "kaya" (toggle di header sidebar, grup bergaya admin) untuk semua
+// peran non-kasir; kasir tetap versi ringkas + bottom-nav mobile.
+const enhanced = computed(() => isAdmin.value || isPlatform.value);
 
-const roleLabel = computed(() =>
-    isAdmin.value ? 'Panel Admin' : 'Mode Kasir',
-);
+const ROLE_LABEL: Record<string, string> = {
+    ceo: 'Panel CEO',
+    superadmin: 'Panel Super Admin',
+    admin: 'Panel Admin',
+    kasir: 'Mode Kasir',
+};
+
+const roleLabel = computed(() => ROLE_LABEL[role.value] ?? 'Mode Kasir');
 </script>
 
 <template>
@@ -32,34 +38,28 @@ const roleLabel = computed(() =>
             <div class="flex items-center gap-1">
                 <SidebarMenu
                     :class="
-                        isAdmin
+                        enhanced
                             ? 'min-w-0 flex-1 group-data-[collapsible=icon]:hidden'
                             : ''
                     "
                 >
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" as-child>
-                            <Link
-                                :href="
-                                    user?.role === 'admin'
-                                        ? '/admin/dashboard'
-                                        : '/kasir/dashboard'
-                                "
-                            >
+                            <Link :href="homeHref">
                                 <AppLogo :subtitle="roleLabel" />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
                 <SidebarTrigger
-                    v-if="isAdmin"
+                    v-if="enhanced"
                     class="hidden shrink-0 text-sidebar-foreground/70 group-data-[collapsible=icon]:mx-auto hover:bg-sidebar-accent hover:text-sidebar-foreground md:flex"
                 />
             </div>
         </SidebarHeader>
 
         <SidebarContent class="py-1">
-            <NavMain :groups="groups" :pinned="pinned" :enhanced="isAdmin" />
+            <NavMain :groups="groups" :pinned="pinned" :enhanced="enhanced" />
         </SidebarContent>
 
         <!-- Akun (admin & kasir) ada di kanan atas header → sidebar tanpa footer. -->

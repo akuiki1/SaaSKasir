@@ -17,7 +17,10 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'kasir'])->default('kasir');
+            // String biasa (bukan enum DB) — daftar peran berkembang (admin,
+            // kasir, lalu ceo & superadmin platform); validasi nilai di level
+            // aplikasi (Rule::in), bukan skema.
+            $table->string('role')->default('kasir');
             $table->rememberToken();
             $table->timestamps();
         });
