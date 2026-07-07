@@ -25,6 +25,7 @@ import {
     Phone,
     CheckCircle2,
     Printer,
+    Bluetooth,
     WifiOff,
     RefreshCw,
     TriangleAlert,
@@ -43,16 +44,15 @@ import Pagination from '@/components/Pagination.vue';
 import { useOffline } from '@/composables/useOffline';
 import { usePagination } from '@/composables/usePagination';
 import { formatRupiah } from '@/lib/format';
-import {
-    conflictSales,
-    discardSale,
-    enqueueSale
-    
-    
-} from '@/lib/offlineDb';
-import type {QueuedSale, SalePayload} from '@/lib/offlineDb';
+import { conflictSales, discardSale, enqueueSale } from '@/lib/offlineDb';
+import type { QueuedSale, SalePayload } from '@/lib/offlineDb';
 import { printReceipt } from '@/lib/struk';
 import type { StrukData, StrukDetail } from '@/lib/struk';
+import {
+    bluetoothPrintingSupported,
+    connectedPrinterName,
+    printReceiptBluetooth,
+} from '@/lib/thermalPrinter';
 import { store as kasirTransaksiStore } from '@/routes/kasir/transaksi';
 
 defineOptions({
@@ -1021,6 +1021,43 @@ function cetakStruk(): void {
     }
 }
 
+// ===== Cetak via printer thermal Bluetooth (ESC/POS) =====
+// Hanya muncul di perangkat yang mendukung Web Bluetooth (Chrome/Android, HTTPS);
+// jika tidak, kasir tetap punya tombol "Cetak via Browser" (window.print).
+const btDidukung = bluetoothPrintingSupported();
+const btNamaPrinter = ref<string | null>(connectedPrinterName());
+const btMencetak = ref(false);
+
+async function cetakBluetooth(): Promise<void> {
+    if (!lastStruk.value || btMencetak.value) {
+        return;
+    }
+
+    btMencetak.value = true;
+
+    try {
+        await printReceiptBluetooth(lastStruk.value, namaToko.value);
+        btNamaPrinter.value = connectedPrinterName();
+        toast.success('Struk terkirim ke printer', {
+            description: btNamaPrinter.value ?? undefined,
+        });
+    } catch (error) {
+        // Pengguna membatalkan dialog pemilihan perangkat bukan kegagalan nyata.
+        if (error instanceof DOMException && error.name === 'NotFoundError') {
+            return;
+        }
+
+        toast.error('Gagal mencetak', {
+            description:
+                error instanceof Error
+                    ? error.message
+                    : 'Periksa printer Bluetooth lalu coba lagi.',
+        });
+    } finally {
+        btMencetak.value = false;
+    }
+}
+
 function tutupStrukSelesai(): void {
     showStrukSelesai.value = false;
     lastStruk.value = null;
@@ -1047,14 +1084,30 @@ const hasJasaInCart = computed(() =>
     cartItems.value.some((item) => item.tipe_jual === 'jasa'),
 );
 
-const BULAN_ID = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+const BULAN_ID = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'Mei',
+    'Jun',
+    'Jul',
+    'Agu',
+    'Sep',
+    'Okt',
+    'Nov',
+    'Des',
+];
 
 function formatTanggalId(d: Date): string {
     return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function newClientUid(): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    if (
+        typeof crypto !== 'undefined' &&
+        typeof crypto.randomUUID === 'function'
+    ) {
         return crypto.randomUUID();
     }
 
@@ -1188,7 +1241,8 @@ async function submitOffline(): Promise<void> {
     cartOpen.value = false;
 
     toast.success('Tersimpan luring', {
-        description: 'Transaksi masuk antrean & tersinkron otomatis saat online.',
+        description:
+            'Transaksi masuk antrean & tersinkron otomatis saat online.',
     });
 }
 
@@ -2685,7 +2739,11 @@ function submitTransaction() {
                         <CheckCircle2 class="h-8 w-8" />
                     </div>
                     <h2 class="mt-4 text-lg font-bold">
-                        {{ lastStrukOffline ? 'Tersimpan Luring' : 'Transaksi Selesai' }}
+                        {{
+                            lastStrukOffline
+                                ? 'Tersimpan Luring'
+                                : 'Transaksi Selesai'
+                        }}
                     </h2>
                     <p class="mt-1 text-sm text-muted-foreground">
                         <template v-if="lastStrukOffline">
@@ -2724,12 +2782,41 @@ function submitTransaction() {
 
                     <div class="mt-6 flex flex-col gap-2">
                         <button
+                            v-if="btDidukung"
                             type="button"
-                            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500"
+                            :disabled="btMencetak"
+                            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
+                            @click="cetakBluetooth"
+                        >
+                            <Loader2
+                                v-if="btMencetak"
+                                class="h-4 w-4 animate-spin"
+                            />
+                            <Bluetooth v-else class="h-4 w-4" />
+                            {{
+                                btMencetak
+                                    ? 'Mencetak…'
+                                    : btNamaPrinter
+                                      ? `Cetak ke ${btNamaPrinter}`
+                                      : 'Cetak Struk (Bluetooth)'
+                            }}
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors"
+                            :class="
+                                btDidukung
+                                    ? 'border border-sidebar-border/70 bg-background hover:bg-slate-50 dark:border-sidebar-border dark:hover:bg-zinc-800/40'
+                                    : 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500'
+                            "
                             @click="cetakStruk"
                         >
                             <Printer class="h-4 w-4" />
-                            Cetak Struk Belanja
+                            {{
+                                btDidukung
+                                    ? 'Cetak via Browser'
+                                    : 'Cetak Struk Belanja'
+                            }}
                         </button>
                         <button
                             type="button"
@@ -2794,7 +2881,9 @@ function submitTransaction() {
                                 :key="sale.client_uid"
                                 class="rounded-xl border border-sidebar-border/70 bg-background p-3.5 dark:border-sidebar-border"
                             >
-                                <div class="flex items-center justify-between gap-2">
+                                <div
+                                    class="flex items-center justify-between gap-2"
+                                >
                                     <span class="font-semibold tabular-nums">{{
                                         sale.struk.kode
                                     }}</span>
@@ -2806,7 +2895,8 @@ function submitTransaction() {
                                     >
                                 </div>
                                 <p class="mt-1 text-xs text-muted-foreground">
-                                    {{ sale.struk.tanggal }} {{ sale.struk.waktu }}
+                                    {{ sale.struk.tanggal }}
+                                    {{ sale.struk.waktu }}
                                 </p>
                                 <p
                                     class="mt-1.5 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-300"
